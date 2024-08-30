@@ -1,0 +1,13 @@
+{
+    "security": {
+        "token": "TOKEN_HERE",
+        "ownerIDs": []
+    },
+    "debug": {
+        "syncCommandsDebug": false,
+        "testGuilds": []
+    },
+    "database": {
+        "path": "database/database.sqlite"
+    }
+}
