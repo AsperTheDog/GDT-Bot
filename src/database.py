@@ -4,7 +4,7 @@ import csv
 from datetime import datetime
 
 from enum import Enum
-from typing import Any
+from typing import Any, Tuple
 
 from disnake import Embed, Color, ApplicationCommandInteraction, Member
 
@@ -210,6 +210,18 @@ class DatabaseManager:
             cursor.execute("SELECT COUNT(*) AS amount FROM borrows WHERE user = ? AND returned IS NULL", (user,))
         return cursor.fetchone()['amount']
 
+    def getReminders(self) -> [dict]:
+        cursor = self.connection.cursor()
+        with open("data_files/queries/getReminders.sql", 'r') as data:
+            cursor.execute(data.read())
+        return cursor.fetchall()
+
+    def setReminderSent(self, user: int) -> bool:
+        cursor = self.connection.cursor()
+        cursor.execute("UPDATE users SET reminded = TRUE WHERE user = ?", (user, ))
+        self.connection.commit()
+        return True
+
     # TODO: Make method take data from BGG
     def insertBoardgame(self, bggCode: int, name: str, play_difficulty: Difficulty, learn_difficulty: Difficulty, min_players: int, max_players: int, length: int, copies: int) -> bool:
         cursor = self.connection.cursor()
@@ -321,6 +333,14 @@ class DatabaseManager:
         self.connection.commit()
         return True, "Item returned successfully"
 
+    def execute(self, query: str) -> (bool, str):
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(query)
+            self.connection.commit()
+            return True, str(cursor.fetchall())
+        except SQLite.Error as e:
+            return False, str(e)
 
     @staticmethod
     def _parseToQuery(filterToken: dict) -> (str, Any):

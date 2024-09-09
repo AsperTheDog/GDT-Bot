@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS borrows (
     register_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     planned_return DATETIME,
     returned DATETIME,
+    reminded BOOLEAN DEFAULT FALSE,
     PRIMARY KEY(user, item, type)
 );
 

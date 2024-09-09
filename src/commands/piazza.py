@@ -1,6 +1,8 @@
-from datetime import datetime
+from datetime import datetime, time
 
+import pytz
 from disnake import ApplicationCommandInteraction, Embed, Color, Permissions, Member
+from disnake.ext.tasks import loop
 from disnake.ext.commands import Cog, slash_command
 
 from src.database import ObjectType
@@ -11,6 +13,21 @@ from src.utils.paginator import GamePaginator
 class GamesCog(Cog):
     def __init__(self, bot):
         self.bot = bot
+
+    @loop(time=time(hour=8, minute=0, tzinfo=pytz.timezone('Europe/Stockholm')))
+    async def reminders(self):
+        borrows = self.bot.db.getReminders()
+        for borrow in borrows:
+            user = self.bot.get_user(borrow['user'])
+            if user is None:
+                continue
+            if borrow['return_status'] == 'overdue':
+                embed = Embed(title="Reminder", description=f"You are overdue to return {borrow['item_name']} ", color=Color.red())
+            else:
+                embed = Embed(title="Reminder", description=f"You are cheduled to return {borrow['item_name']} " + borrow['return_status'], color=Color.red())
+            await user.send(embed=embed)
+            self.bot.db.setReminderSent(borrow['user'])
+        print("Reminders sent at " + datetime.now(tz=pytz.timezone('Europe/Stockholm')).strftime("%Y-%m-%d %H:%M:%S"))
 
     async def _sendQueryEmbed(self, inter: ApplicationCommandInteraction, itemType: ObjectType, items: [dict], flags: str):
         embed: Embed = self.bot.db.getItemEmbed(itemType, items[0]['id'], "e" in flags)
@@ -118,7 +135,7 @@ class GamesCog(Cog):
             if retrieval_date:
                 retrieval_date = datetime.strptime(retrieval_date, "%Y-%m-%d")
             if planned_return:
-                planned_return = datetime.strptime(planned_return, "%Y-%m-%d")
+                planned_return = datetime.strptime(planned_return, "%Y-%m-%d").replace(hour=12)
         except ValueError:
             success = False
             message = "Error parsing dates, please use the format YYYY-MM-DD"

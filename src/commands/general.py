@@ -1,4 +1,4 @@
-from disnake import ApplicationCommandInteraction, Permissions
+from disnake import ApplicationCommandInteraction, Permissions, Embed, Color
 from disnake.ext.commands import Cog, slash_command, InteractionBot
 
 
@@ -16,3 +16,15 @@ class GeneralCog(Cog):
     async def ping(self, inter: ApplicationCommandInteraction):
         await inter.response.send_message("Pong!")
         print("Pong!")
+
+    @slash_command(name="executequery", description="Execute a custom query on the database", permissions=Permissions(administrator=True))
+    async def executequery(self, inter: ApplicationCommandInteraction, query: str):
+        await inter.response.defer()
+        success, result = self.bot.db.execute(query)
+        if len(result) > 4085:
+            result = result[:4082] + "..."
+        if success:
+            embed = Embed(title="Query executed successfully", description=f"Result: {result}", color=Color.green())
+        else:
+            embed = Embed(title="Query failed", description=f"Error: {result}", color=Color.red())
+        await inter.edit_original_response(embed=embed)
