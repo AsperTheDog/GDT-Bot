@@ -1,8 +1,10 @@
-from disnake import ApplicationCommandInteraction, Embed, Color, Permissions
+from datetime import datetime
+
+from disnake import ApplicationCommandInteraction, Embed, Color, Permissions, Member
 from disnake.ext.commands import Cog, slash_command
 
 from src.database import ObjectType
-from src.utils.list_paginator import ListPaginator
+from src.utils.borrow_paginator import BorrowPaginator
 from src.utils.paginator import GamePaginator
 
 
@@ -11,12 +13,8 @@ class GamesCog(Cog):
         self.bot = bot
 
     async def _sendQueryEmbed(self, inter: ApplicationCommandInteraction, itemType: ObjectType, items: [dict], flags: str):
-        if "c" in flags:
-            embed: Embed = self.bot.db.getListEmbed(itemType, items[:(10 if len(items > 10) else len(items))])
-            view = ListPaginator(itemType, items, self.bot.db)
-        else:
-            embed: Embed = self.bot.db.getItemEmbed(itemType, items[0]['id'], "e" in flags)
-            view = GamePaginator(itemType, items, "e" in flags, embed, self.bot.db)
+        embed: Embed = self.bot.db.getItemEmbed(itemType, items[0]['id'], "e" in flags)
+        view = GamePaginator(itemType, items, "e" in flags, embed, self.bot.db)
         embed.set_footer(text="Use arrows to move between pages")
         view.msg = await inter.original_response()
         await view.msg.edit(embed=embed, view=view)
@@ -36,6 +34,15 @@ class GamesCog(Cog):
             embed: Embed = Embed(title="Videogame inserted", description=f"Videogame {name} inserted successfully", color=Color.green())
         else:
             embed: Embed = Embed(title="Error inserting videogame", description=f"Error inserting videogame {name}, is it already present?", color=Color.red())
+        await inter.edit_original_response(embed=embed)
+
+    @slash_command(name="insertbook", description="Insert a new book into the database", permissions=Permissions(administrator=True))
+    async def insertBook(self, inter: ApplicationCommandInteraction, name: str, author: str, pages: int, genre: str, abstract: str = "", copies: int = 1):
+        await inter.response.defer()
+        if self.bot.db.insertBook(name, author, pages, genre, abstract, copies):
+            embed: Embed = Embed(title="Book inserted", description=f"Book {name} inserted successfully", color=Color.green())
+        else:
+            embed: Embed = Embed(title="Error inserting book", description=f"Error inserting book {name}, is it already present?", color=Color.red())
         await inter.edit_original_response(embed=embed)
 
     @slash_command(name="bgsearch", description="Simple command to get the list of boardgames with some filters")
@@ -102,3 +109,62 @@ class GamesCog(Cog):
             await inter.edit_original_message(embed=embed)
             return
         await self._sendQueryEmbed(inter, ObjectType.BOOK, books, flags)
+
+    @slash_command(name="borrow", description="Borrow something from Piazza. Dates should be written in the format YYYY-MM-DD")
+    async def borrow(self, inter: ApplicationCommandInteraction, item_id: int, item_type: str, planned_return: str = None, retrieval_date: str = None):
+        await inter.response.defer()
+        try:
+            item_type = ObjectType[item_type.upper()]
+            if retrieval_date:
+                retrieval_date = datetime.strptime(retrieval_date, "%Y-%m-%d")
+            if planned_return:
+                planned_return = datetime.strptime(planned_return, "%Y-%m-%d")
+        except ValueError:
+            success = False
+            message = "Error parsing dates, please use the format YYYY-MM-DD"
+        except KeyError:
+            success = False
+            message = "Invalid item type, options are: book, boardgame, videogame"
+        else:
+            success, message = self.bot.db.borrowItem(inter.user.id, item_id, item_type, planned_return, retrieval_date)
+
+        if success:
+            embed: Embed = Embed(title="Item borrowed", description=message, color=Color.green())
+        else:
+            embed: Embed = Embed(title="Error borrowing item", description=message, color=Color.red())
+        await inter.edit_original_response(embed=embed)
+
+    @slash_command(name="return", description="Return something you borrowed to Piazza")
+    async def returnItem(self, inter: ApplicationCommandInteraction, item_id: int, item_type: str):
+        await inter.response.defer()
+        try:
+            item_type = ObjectType[item_type.upper()]
+        except ValueError:
+            success = False
+            message = "Invalid item type, options are: book, boardgame, videogame"
+        else:
+            success, message = self.bot.db.returnItem(inter.user.id, item_id, item_type)
+        if success:
+            embed: Embed = Embed(title="Item returned", description=message, color=Color.green())
+        else:
+            embed: Embed = Embed(title="Error returning item", description=message, color=Color.red())
+        await inter.edit_original_response(embed=embed)
+
+    @slash_command(name="getmyborrows", description="Get the list of items you borrowed from Piazza")
+    async def getMyBorrows(self, inter: ApplicationCommandInteraction):
+        await self.getBorrows(inter, inter.user)
+
+    @slash_command(name="getborrows", description="Get the list of items borrowed from Piazza")
+    async def getBorrows(self, inter: ApplicationCommandInteraction, user: Member = None):
+        await inter.response.defer()
+        amount = self.bot.db.getBorrowsAmount(user.id if user is not None else None)
+        if amount == 0:
+            titleAppend = (" by " + (user.nick if user.nick is not None else user.name)) if user is not None else ""
+            embed: Embed = Embed(title="Items borrowed" + titleAppend, description="No items have been borrowed from Piazza" + titleAppend, color=Color.red())
+            await inter.edit_original_response(embed=embed)
+            return
+        embed = await self.bot.db.getBorrowsListEmbed((0, 10), inter, user.id if user is not None else None)
+        view = BorrowPaginator(amount // 10 + 1, embed, self.bot.db, user.id if user is not None else None)
+        view.msg = await inter.original_response()
+        embed.set_footer(text="Use arrows to move between pages")
+        await view.msg.edit(embed=embed, view=view)

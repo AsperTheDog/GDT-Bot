@@ -1,11 +1,12 @@
 import os
 import sqlite3 as SQLite
 import csv
+from datetime import datetime
 
 from enum import Enum
 from typing import Any
 
-from disnake import Embed, Color
+from disnake import Embed, Color, ApplicationCommandInteraction, Member
 
 
 class Difficulty(Enum):
@@ -70,56 +71,8 @@ class DatabaseManager:
         connection: SQLite.Connection = SQLite.connect(self.path)
         cursor: SQLite.Cursor = connection.cursor()
 
-        cursor.execute("""CREATE TABLE IF NOT EXISTS boardgames (
-                        id INTEGER NOT NULL PRIMARY KEY, 
-                        name VARCHAR NOT NULL,
-                        play_difficulty INTEGER,
-                        learn_difficulty INTEGER,
-                        min_players INTEGER,
-                        max_players INTEGER,
-                        copies INTEGER DEFAULT 1,
-                        length INTEGER
-                    )""")
-
-        cursor.execute("""CREATE TABLE IF NOT EXISTS videogames (
-                        id INTEGER NOT NULL PRIMARY KEY, 
-                        name VARCHAR NOT NULL,
-                        difficulty INTEGER,
-                        platform INTEGER,
-                        min_players INTEGER,
-                        max_players INTEGER,
-                        copies INTEGER DEFAULT 1,
-                        length INTEGER
-                    )""")
-
-        cursor.execute("""CREATE TABLE IF NOT EXISTS books (
-                        id INTEGER NOT NULL PRIMARY KEY, 
-                        name VARCHAR NOT NULL,
-                        author VARCHAR,
-                        pages INTEGER,
-                        genre VARCHAR,
-                        abstract VARCHAR,
-                        copies INTEGER DEFAULT 1
-                    )""")
-
-        cursor.execute("""CREATE TABLE IF NOT EXISTS borrows (
-                        user INTEGER NOT NULL,
-                        item INTEGER NOT NULL,
-                        type VARCHAR NOT NULL,
-                        amount INTEGER NOT NULL,
-                        borrow_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                        register_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                        indented_return DATETIME,
-                        returned DATETIME,
-                        PRIMARY KEY(user, item, type)
-                    )""")
-
-        cursor.execute("""CREATE TABLE IF NOT EXISTS suggestions (
-                        name VARCHAR NOT NULL PRIMARY KEY,
-                        type VARCHAR NOT NULL,
-                        likes INTEGER DEFAULT 1,
-                        message INTEGER NOT NULL
-                    )""")
+        with open("data_files/queries/generateDB.sql", 'r') as data:
+            cursor.executescript(data.read())
 
         if hardReset:
             print("Populating default data...")
@@ -165,16 +118,13 @@ class DatabaseManager:
             if offset > 0:
                 query += f" OFFSET ? "
                 arguments.append(offset)
-        print(query)
-        print(arguments)
         cursor.execute(query, arguments)
-        res = cursor.fetchall()
-        return res
+        return cursor.fetchall()
 
     def getItemEmbed(self, itemType: ObjectType, itemID: int, extended: bool) -> Embed | None:
         def getBoardgameEmbed(data: dict) -> Embed:
             color: Color = Color.dark_green() if data['copies_left'] > 0 else Color.red()
-            embed = Embed(title=data['name'], color=color)
+            embed = Embed(title=data['name'] + (f" ({itemID})" if not extended else ""), color=color)
             if extended:
                 embed.add_field(name="ID", value=data['id'], inline=False)
             embed.add_field(name="Players", value=f"{data['min_players']} - {data['max_players']}", inline=False)
@@ -191,7 +141,7 @@ class DatabaseManager:
 
         def getVideogameEmbed(data: dict) -> Embed:
             color: Color = Color.dark_green() if data['copies_left'] > 0 else Color.red()
-            embed = Embed(title=data['name'], color=color)
+            embed = Embed(title=data['name'] + (f" ({itemID})" if not extended else ""), color=color)
             if extended:
                 embed.add_field(name="ID", value=data['id'], inline=False)
             embed.add_field(name="Players", value=f"{data['min_players']} - {data['max_players']}", inline=False)
@@ -205,7 +155,7 @@ class DatabaseManager:
 
         def getBookEmbed(data: dict) -> Embed:
             color: Color = Color.dark_green() if data['copies_left'] > 0 else Color.red()
-            embed = Embed(title=data['name'], color=color)
+            embed = Embed(title=data['name'] + (f" ({itemID})" if not extended else ""), color=color)
             if extended:
                 embed.add_field(name="ID", value=data['id'], inline=False)
             embed.add_field(name="Author", value=data['author'], inline=False)
@@ -218,13 +168,8 @@ class DatabaseManager:
             return embed
 
         cursor = self.connection.cursor()
-        cursor.execute(f"""SELECT *, t.copies - IFNULL(br.borrowed_count, 0) AS copies_left FROM {itemType.value} t
-                            LEFT JOIN (
-                                SELECT item, COUNT(*) AS borrowed_count
-                                FROM borrows
-                                WHERE type = ? AND returned IS NULL
-                                GROUP BY item
-                            ) br ON t.id = br.item WHERE id = ?""", (itemType.value[:-1], itemID))
+        with open("data_files/queries/getItem.sql", 'r') as data:
+            cursor.execute(data.read().format(itemType.value), (itemType.value[:-1], itemID))
         queryResult = cursor.fetchone()
         if queryResult is None:
             return None
@@ -235,25 +180,35 @@ class DatabaseManager:
         else:
             return getBookEmbed(queryResult)
 
-    def getListEmbed(self, itemType: ObjectType, items: [int], range: (int, int)) -> Embed:
-        def getBoardgameField() -> str:
-            return ""
-
-        def getVideogameField() -> str:
-            return ""
-
-        def getBookField() -> str:
-            return ""
-
+    async def getBorrowsListEmbed(self, pageRange: (int, int), inter: ApplicationCommandInteraction, user: int = None) -> Embed:
         cursor = self.connection.cursor()
-        cursor.executemany(f"""SELECT *, (t.copies - IFNULL(br.borrowed_count, 0)) > 0 AS available FROM {itemType.value} t
-                                LEFT JOIN (
-                                SELECT item, COUNT(*) AS borrowed_count
-                                FROM borrows
-                                WHERE type = ? AND returned IS NULL
-                                GROUP BY item
-                            ) br ON t.id = br.item WHERE id = ?""", [(itemType.value[:-1], itemID) for itemID in items[range[0]:range[1]]])
+        with open("data_files/queries/getMixedList.sql", 'r') as data:
+            query = data.read()
+        userFilter = "AND user = ?" if user is not None else ""
+        pageFilter = f"LIMIT {pageRange[1] - pageRange[0]}" + (f" OFFSET {pageRange[0]}" if pageRange[0] > 0 else "")
+        if userFilter == "":
+            cursor.execute(query.format(userFilter, pageFilter))
+        else:
+            cursor.execute(query.format(userFilter, pageFilter), (user, user, user))
         data = cursor.fetchall()
+        if user is not None:
+            user: Member = (await inter.guild.fetch_member(user))
+            titleAppend: str = " by " + (user.nick if user.nick is not None else user.name)
+        else:
+            titleAppend = ""
+        embed = Embed(title="Items borrowed" + titleAppend, color=Color.dark_gold())
+        embed.add_field(name="User", value="\n".join([(await inter.guild.fetch_member(entry['user'])).mention for entry in data]), inline=True)
+        embed.add_field(name="Item (copies left)", value="\n".join([str(entry['item_name']) + f" **({entry['available_copies']})**" for entry in data]), inline=True)
+        embed.add_field(name="Type", value="\n".join([entry['item_type'] for entry in data]), inline=True)
+        return embed
+
+    def getBorrowsAmount(self, user: int = None) -> int:
+        cursor = self.connection.cursor()
+        if user is None:
+            cursor.execute("SELECT COUNT(*) AS amount FROM borrows WHERE returned IS NULL")
+        else:
+            cursor.execute("SELECT COUNT(*) AS amount FROM borrows WHERE user = ? AND returned IS NULL", (user,))
+        return cursor.fetchone()['amount']
 
     # TODO: Make method take data from BGG
     def insertBoardgame(self, bggCode: int, name: str, play_difficulty: Difficulty, learn_difficulty: Difficulty, min_players: int, max_players: int, length: int, copies: int) -> bool:
@@ -294,6 +249,25 @@ class DatabaseManager:
             return False
         return True
 
+    def insertBook(self, name: str, author: str, pages: int, genre: str, abstract: str, copies: int) -> bool:
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute("INSERT INTO books (name, author, pages, genre, abstract, copies) VALUES (?, ?, ?, ?, ?, ?)",
+                           (name, author, pages, genre, abstract, copies))
+            self.connection.commit()
+        except SQLite.IntegrityError:
+            return False
+        return True
+
+    def deleteBook(self, name: str) -> bool:
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute("DELETE FROM books WHERE name = ?", (name,))
+            self.connection.commit()
+        except SQLite.IntegrityError:
+            return False
+        return True
+
     def editCopies(self, itemType: ObjectType, itemID: int, copies: int) -> bool:
         cursor = self.connection.cursor()
         try:
@@ -302,6 +276,51 @@ class DatabaseManager:
         except SQLite.IntegrityError:
             return False
         return True
+
+    def borrowItem(self, user: int, item: int, itemType: ObjectType, planned_return: datetime, retrieval_date: datetime) -> (bool, str):
+        cursor = self.connection.cursor()
+        # Check the user has not borrowed the item already
+        cursor.execute("SELECT EXISTS(SELECT 1 FROM borrows WHERE user = ? AND item = ? AND type = ?) AS already_borrowed", (user, item, itemType.value[:-1]))
+        if cursor.fetchone()['already_borrowed']:
+            return False, "You have already borrowed this item"
+
+        # Check the item exists
+        cursor.execute(f"SELECT EXISTS(SELECT 1 FROM {itemType.value} WHERE id = ?) AS item_exists", (item,))
+        if not cursor.fetchone()['item_exists']:
+            return False, "This item does not exist"
+
+        # Check the item is available
+        cursor.execute(f"SELECT copies - IFNULL(br.borrowed_count, 0) AS copies_left FROM {itemType.value} t LEFT JOIN (SELECT item, COUNT(*) AS borrowed_count FROM borrows WHERE type = ? AND returned IS NULL GROUP BY item) br ON t.id = br.item WHERE id = ?", (itemType.value[:-1], item))
+        copies_left = cursor.fetchone()['copies_left']
+        if copies_left <= 0:
+            return False, "There are no copies left of this item in Piazza"
+
+        if retrieval_date is None:
+            retrieval_date = datetime.now()
+
+        # Check dates are valid
+        if planned_return is not None and planned_return < retrieval_date:
+            return False, "Planned return date must be after retrieval date"
+        if retrieval_date < datetime.now():
+            return False, "Retrieval date must be in the future"
+
+        cursor.execute("INSERT INTO borrows (user, item, type, amount, planned_return, retrieval_date) VALUES (?, ?, ?, ?, ?, ?)",
+                       (user, item, itemType.value[:-1], 1, planned_return, retrieval_date))
+
+        self.connection.commit()
+        return True, "Item borrowed successfully"
+
+    def returnItem(self, user: int, item: int, itemType: ObjectType) -> (bool, str):
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT EXISTS(SELECT 1 FROM borrows WHERE user = ? AND item = ? AND type = ? AND returned IS NULL) AS borrowed", (user, item, itemType.value[:-1]))
+        if not cursor.fetchone()['borrowed']:
+            return False, "You have not borrowed this item"
+
+        cursor.execute("UPDATE borrows SET returned = ? WHERE user = ? AND item = ? AND type = ? AND returned IS NULL",
+                       (datetime.now(), user, item, itemType.value[:-1]))
+        self.connection.commit()
+        return True, "Item returned successfully"
+
 
     @staticmethod
     def _parseToQuery(filterToken: dict) -> (str, Any):
@@ -345,9 +364,7 @@ class DatabaseManager:
                     continue
                 key = mapped_key
                 try:
-                    converted_value = value_converter[value.upper()].value if issubclass(value_converter,
-                                                                                         Enum) else value_converter(
-                        value)
+                    converted_value = value_converter[value.upper()].value if issubclass(value_converter, Enum) else value_converter(value)
                 except (KeyError, ValueError):
                     pass  # Exception is ignored since converted_value is still None, so we just ignore the filter
                 break
