@@ -181,7 +181,7 @@ class GamesCog(Cog):
             await inter.edit_original_response(embed=embed)
             return
         embed = await self.bot.db.getBorrowsListEmbed((0, 10), inter, user.id if user is not None else None, True)
-        view = BorrowPaginator(amount // 10 + 1, embed, self.bot.db, user.id if user is not None else None)
+        view = BorrowPaginator(amount // 10 + 1, embed, self.bot.db, user.id if user is not None else None, True)
         view.msg = await inter.original_response()
         embed.set_footer(text="Use arrows to move between pages")
         await view.msg.edit(embed=embed, view=view)
@@ -196,7 +196,7 @@ class GamesCog(Cog):
             await inter.edit_original_response(embed=embed)
             return
         embed = await self.bot.db.getBorrowsListEmbed((0, 10), inter, user.id if user is not None else None, False)
-        view = BorrowPaginator(amount // 10 + 1, embed, self.bot.db, user.id if user is not None else None)
+        view = BorrowPaginator(amount // 10 + 1, embed, self.bot.db, user.id if user is not None else None, False)
         view.msg = await inter.original_response()
         embed.set_footer(text="Use arrows to move between pages")
         await view.msg.edit(embed=embed, view=view)
