@@ -77,7 +77,7 @@ class GamesCog(Cog):
             filters.append(f"length<={max_length}")
         filterStr: str = ", ".join(filters)
         print("Performing boardgame simple query...")
-        games: [dict] = self.bot.db.getFilteredList("boardgames", "", filterStr)
+        games: [dict] = self.bot.db.getFilteredList(ObjectType.BOARDGAME, "", filterStr)
         if len(games) == 0:
             embed: Embed = Embed(title="No boardgames found", description="No boardgames found with the specified filters", color=Color.red())
             await inter.edit_original_response(embed=embed)
@@ -99,7 +99,7 @@ class GamesCog(Cog):
             filters.append(f"platform=={platform}")
         filterStr: str = ", ".join(filters)
         print("Performing videogame simple query...")
-        games: [dict] = self.bot.db.getFilteredList("videogames", "", filterStr)
+        games: [dict] = self.bot.db.getFilteredList(ObjectType.VIDEOGAME, "", filterStr)
         if len(games) == 0:
             embed: Embed = Embed(title="No videogames found", description="No videogames found with the specified filters", color=Color.red())
             await inter.edit_original_message(embed=embed)
@@ -120,7 +120,7 @@ class GamesCog(Cog):
             filters.append(f"pages>={min_pages}")
         filterStr: str = ", ".join(filters)
         print("Performing book simple query...")
-        books: [dict] = self.bot.db.getFilteredList("books", "", filterStr)
+        books: [dict] = self.bot.db.getFilteredList(ObjectType.BOOK, "", filterStr)
         if len(books) == 0:
             embed: Embed = Embed(title="No books found", description="No books found with the specified filters", color=Color.red())
             await inter.edit_original_message(embed=embed)
@@ -128,10 +128,9 @@ class GamesCog(Cog):
         await self._sendQueryEmbed(inter, ObjectType.BOOK, books, flags)
 
     @slash_command(name="borrow", description="Borrow something from Piazza. Dates should be written in the format YYYY-MM-DD")
-    async def borrow(self, inter: ApplicationCommandInteraction, item_id: int, item_type: str, planned_return: str = None, retrieval_date: str = None):
+    async def borrow(self, inter: ApplicationCommandInteraction, item: str, planned_return: str = None, retrieval_date: str = None):
         await inter.response.defer()
         try:
-            item_type = ObjectType[item_type.upper()]
             if retrieval_date:
                 retrieval_date = datetime.strptime(retrieval_date, "%Y-%m-%d")
             if planned_return:
@@ -143,8 +142,18 @@ class GamesCog(Cog):
             success = False
             message = "Invalid item type, options are: book, boardgame, videogame"
         else:
-            success, message = self.bot.db.borrowItem(inter.user.id, item_id, item_type, planned_return, retrieval_date)
-
+            try:
+                itemID = int(item)
+                success, message = self.bot.db.borrowItem(inter.user.id, itemID, planned_return, retrieval_date)
+                if not success and message == "This item does not exist":
+                    raise ValueError
+            except ValueError:
+                itemID = self.bot.db.getItemIDFromName(item)
+                if itemID == -1:
+                    success = False
+                    message = "Item not found"
+                else:
+                    success, message = self.bot.db.borrowItem(inter.user.id, itemID, planned_return, retrieval_date)
         if success:
             embed: Embed = Embed(title="Item borrowed", description=message, color=Color.green())
         else:
@@ -152,35 +161,41 @@ class GamesCog(Cog):
         await inter.edit_original_response(embed=embed)
 
     @slash_command(name="return", description="Return something you borrowed to Piazza")
-    async def returnItem(self, inter: ApplicationCommandInteraction, item_id: int, item_type: str):
+    async def returnItem(self, inter: ApplicationCommandInteraction, item: str):
         await inter.response.defer()
-        try:
-            item_type = ObjectType[item_type.upper()]
-        except ValueError:
-            success = False
-            message = "Invalid item type, options are: book, boardgame, videogame"
-        else:
-            success, message = self.bot.db.returnItem(inter.user.id, item_id, item_type)
-        if success:
-            embed: Embed = Embed(title="Item returned", description=message, color=Color.green())
-        else:
-            embed: Embed = Embed(title="Error returning item", description=message, color=Color.red())
+        success, message = self.bot.db.returnItem(inter.user.id, item)
+        if not success:
+            embed = Embed(title="Error returning item", description=message, color=Color.red())
+            await inter.edit_original_response(embed=embed)
+            return
+        embed = Embed(title="Item returned", description=message, color=Color.green())
         await inter.edit_original_response(embed=embed)
-
-    @slash_command(name="getmyborrows", description="Get the list of items you borrowed from Piazza")
-    async def getMyBorrows(self, inter: ApplicationCommandInteraction):
-        await self.getBorrows(inter, inter.user)
 
     @slash_command(name="getborrows", description="Get the list of items borrowed from Piazza")
     async def getBorrows(self, inter: ApplicationCommandInteraction, user: Member = None):
         await inter.response.defer()
-        amount = self.bot.db.getBorrowsAmount(user.id if user is not None else None)
+        amount = self.bot.db.getBorrowsAmount(user.id if user is not None else None, True)
         if amount == 0:
             titleAppend = (" by " + (user.nick if user.nick is not None else user.name)) if user is not None else ""
             embed: Embed = Embed(title="Items borrowed" + titleAppend, description="No items have been borrowed from Piazza" + titleAppend, color=Color.red())
             await inter.edit_original_response(embed=embed)
             return
-        embed = await self.bot.db.getBorrowsListEmbed((0, 10), inter, user.id if user is not None else None)
+        embed = await self.bot.db.getBorrowsListEmbed((0, 10), inter, user.id if user is not None else None, True)
+        view = BorrowPaginator(amount // 10 + 1, embed, self.bot.db, user.id if user is not None else None)
+        view.msg = await inter.original_response()
+        embed.set_footer(text="Use arrows to move between pages")
+        await view.msg.edit(embed=embed, view=view)
+
+    @slash_command(name="getborrowhistory", description="Get the history of borrowed items from Piazza")
+    async def getBorrowHistory(self, inter: ApplicationCommandInteraction, user: Member = None):
+        await inter.response.defer()
+        amount = self.bot.db.getBorrowsAmount(user.id if user is not None else None, False)
+        if amount == 0:
+            titleAppend = (" by " + (user.nick if user.nick is not None else user.name)) if user is not None else ""
+            embed: Embed = Embed(title="Borrow history" + titleAppend, description="No items have been borrowed from Piazza" + titleAppend, color=Color.red())
+            await inter.edit_original_response(embed=embed)
+            return
+        embed = await self.bot.db.getBorrowsListEmbed((0, 10), inter, user.id if user is not None else None, False)
         view = BorrowPaginator(amount // 10 + 1, embed, self.bot.db, user.id if user is not None else None)
         view.msg = await inter.original_response()
         embed.set_footer(text="Use arrows to move between pages")

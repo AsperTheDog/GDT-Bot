@@ -50,6 +50,13 @@ def dict_factory(cursor, row):
             d[col[0]] = Difficulty(d[col[0]])
         if col[0] == "platform":
             d[col[0]] = Platform(d[col[0]])
+        if col[0] == "type":
+            d[col[0]] = ObjectType(d[col[0]] + "s")
+        if col[0] == "returned" or col[0] == "planned_return" or col[0] == "retrieval_date" or col[0] == "register_date":
+            if d[col[0]] is not None:
+                d[col[0]] = datetime.strptime(d[col[0]], "%Y-%m-%d %H:%M:%S.%f")
+            else:
+                d[col[0]] = None
     return d
 
 
@@ -81,20 +88,35 @@ class DatabaseManager:
                 with open(file, 'r') as data:
                     dr = csv.DictReader(data)
                     for entry in dr:
-                        cursor.execute(
-                            f"INSERT INTO {table} ({', '.join(entry.keys())}) VALUES ({', '.join(['?' for _ in entry.keys()])})",
-                            list(entry.values()))
+                        itemData = {"type": table[:-1]}
+                        specificData = {"id": None}
+                        for key, value in entry.items():
+                            if key in ["name", "copies"]:
+                                itemData[key] = value
+                            else:
+                                specificData[key] = value
+                        cursor.execute(f"INSERT INTO items ({', '.join(itemData.keys())}) VALUES ({', '.join(['?' for _ in itemData.keys()])})", list(itemData.values()))
+                        cursor.execute(f"SELECT id FROM items WHERE name = ?", (itemData['name'],))
+                        specificData['id'] = cursor.fetchone()[0]
+                        cursor.execute(f"INSERT INTO {table} ({', '.join(specificData.keys())}) VALUES ({', '.join(['?' for _ in specificData.keys()])})", list(specificData.values()))
 
         connection.commit()
         return connection
 
-    def getFilteredList(self, table: str, orFilters: str, andFilters: str, ascending: bool = False, limit: int = 0, offset: int = 0) -> [dict]:
+    def getItemIDFromName(self, name: str) -> int:
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT id FROM items WHERE name = ?", (name,))
+        data = cursor.fetchone()
+        return data['id'] if data is not None else -1
+
+    def getFilteredList(self, itemType: ObjectType, orFilters: str, andFilters: str, ascending: bool = False, limit: int = 0, offset: int = 0) -> [dict]:
         orFilterData = self._parseFilterTokens(orFilters)
         andFilterData = self._parseFilterTokens(andFilters)
-        query = f"SELECT id FROM {table}"
+        with open("data_files/queries/getFilteredList.sql", 'r') as data:
+            query = data.read().format(itemType.value)
         cursor = self.connection.cursor()
         queries = []
-        arguments = []
+        arguments = [itemType.value[:-1]]
         if len(orFilterData) > 0 or len(andFilterData) > 0:
             query += f" WHERE "
         for filterToken in orFilterData:
@@ -180,16 +202,18 @@ class DatabaseManager:
         else:
             return getBookEmbed(queryResult)
 
-    async def getBorrowsListEmbed(self, pageRange: (int, int), inter: ApplicationCommandInteraction, user: int = None) -> Embed:
+    async def getBorrowsListEmbed(self, pageRange: (int, int), inter: ApplicationCommandInteraction, user: int = None, current: bool = True) -> Embed:
         cursor = self.connection.cursor()
         with open("data_files/queries/getMixedList.sql", 'r') as data:
             query = data.read()
-        userFilter = "AND user = ?" if user is not None else ""
-        pageFilter = f"LIMIT {pageRange[1] - pageRange[0]}" + (f" OFFSET {pageRange[0]}" if pageRange[0] > 0 else "")
+        userFilter = "WHERE user = ?" if user is not None else ""
+        returnFilter = ("WHERE" if userFilter == "" else "AND") + f" returned IS {"" if current else "NOT"} NULL"
+        pageFilter = f" LIMIT {pageRange[1] - pageRange[0]}" + (f" OFFSET {pageRange[0]}" if pageRange[0] > 0 else "")
+        finalFilter = userFilter + returnFilter + pageFilter
         if userFilter == "":
-            cursor.execute(query.format(userFilter, pageFilter))
+            cursor.execute(query.format(finalFilter))
         else:
-            cursor.execute(query.format(userFilter, pageFilter), (user, user, user))
+            cursor.execute(query.format(finalFilter), (user,))
         data = cursor.fetchall()
         if user is not None:
             user: Member = (await inter.guild.fetch_member(user))
@@ -198,16 +222,19 @@ class DatabaseManager:
             titleAppend = ""
         embed = Embed(title="Items borrowed" + titleAppend, color=Color.dark_gold())
         embed.add_field(name="User", value="\n".join([(await inter.guild.fetch_member(entry['user'])).mention for entry in data]), inline=True)
-        embed.add_field(name="Item (copies left)", value="\n".join([str(entry['item_name']) + f" **({entry['available_copies']})**" for entry in data]), inline=True)
-        embed.add_field(name="Type", value="\n".join([entry['item_type'] for entry in data]), inline=True)
+        embed.add_field(name="Item (type)", value="\n".join([str(entry['name']) + f" ({entry['type'].value[:-1]})" for entry in data]), inline=True)
+        if current:
+            embed.add_field(name="Copies left", value="\n".join([str(entry['available_copies']) for entry in data]), inline=True)
+        else:
+            embed.add_field(name="Returned", value="\n".join([entry['returned'].strftime("%d/%m/%Y") for entry in data]), inline=True)
         return embed
 
-    def getBorrowsAmount(self, user: int = None) -> int:
+    def getBorrowsAmount(self, user: int, current: bool) -> int:
         cursor = self.connection.cursor()
         if user is None:
-            cursor.execute("SELECT COUNT(*) AS amount FROM borrows WHERE returned IS NULL")
+            cursor.execute(f"SELECT COUNT(*) AS amount FROM borrows WHERE returned IS {"" if current else "NOT"} NULL")
         else:
-            cursor.execute("SELECT COUNT(*) AS amount FROM borrows WHERE user = ? AND returned IS NULL", (user,))
+            cursor.execute(f"SELECT COUNT(*) AS amount FROM borrows WHERE user = ? AND returned IS {"" if current else "NOT"} NULL", (user,))
         return cursor.fetchone()['amount']
 
     def getReminders(self) -> [dict]:
@@ -216,9 +243,28 @@ class DatabaseManager:
             cursor.execute(data.read())
         return cursor.fetchall()
 
+    def returnItem(self, user: int, item: str) -> (bool, str):
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT EXISTS(SELECT 1 FROM items WHERE id = ?) AS item_exists", (item,))
+        if not cursor.fetchone()['item_exists']:
+            return False, "This item does not exist"
+
+        # Check the user has not borrowed the item already
+        cursor.execute("SELECT EXISTS(SELECT 1 FROM borrows WHERE user = ? AND item = ? AND returned IS NULL) AS already_borrowed", (user, item))
+        if not cursor.fetchone()['already_borrowed']:
+            return False, "You are not borrwing this item"
+
+        cursor.execute("UPDATE borrows SET returned = ? WHERE user = ? AND item = ? AND returned IS NULL", (datetime.now(), user, item))
+        self.connection.commit()
+
+        cursor.execute("SELECT name FROM items WHERE id = ?", (item,))
+        item_name = cursor.fetchone()['name']
+
+        return True, f"Item '{item_name}' returned successfully"
+
     def setReminderSent(self, user: int) -> bool:
         cursor = self.connection.cursor()
-        cursor.execute("UPDATE users SET reminded = TRUE WHERE user = ?", (user, ))
+        cursor.execute("UPDATE users SET reminded = TRUE WHERE user = ?", (user,))
         self.connection.commit()
         return True
 
@@ -226,17 +272,20 @@ class DatabaseManager:
     def insertBoardgame(self, bggCode: int, name: str, play_difficulty: Difficulty, learn_difficulty: Difficulty, min_players: int, max_players: int, length: int, copies: int) -> bool:
         cursor = self.connection.cursor()
         try:
-            cursor.execute("INSERT INTO boardgames (id, name, play_difficulty, learn_difficulty, min_players, max_players, length, copies) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                           (bggCode, name, play_difficulty.value, learn_difficulty.value, min_players, max_players, length, copies))
+            cursor.execute("INSERT INTO items (name, type, copies) VALUES (?)", (name, "boardgame", copies))
+            cursor.execute("SELECT id FROM items WHERE name = ?", (name,))
+            itemID = cursor.fetchone()['id']
+            cursor.execute("INSERT INTO boardgames (id, bgg_id, play_difficulty, learn_difficulty, min_players, max_players, length) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                           (itemID, bggCode, play_difficulty.value, learn_difficulty.value, min_players, max_players, length))
             self.connection.commit()
         except SQLite.IntegrityError:
             return False
         return True
 
-    def deleteBoardgame(self, bggCode: int) -> bool:
+    def deleteBoardgame(self, id: int) -> bool:
         cursor = self.connection.cursor()
         try:
-            cursor.execute("DELETE FROM boardgames WHERE id = ?", (bggCode,))
+            cursor.execute("DELETE FROM items WHERE id = ?", (id,))
             self.connection.commit()
         except SQLite.IntegrityError:
             return False
@@ -245,17 +294,20 @@ class DatabaseManager:
     def insertVideogame(self, name: str, platform: Platform, difficulty: Difficulty, min_players: int, max_players: int, length: int, copies: int) -> bool:
         cursor = self.connection.cursor()
         try:
-            cursor.execute("INSERT INTO videogames (name, platform, difficulty, min_players, max_players, length, copies) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                           (name, platform.value, difficulty.value, min_players, max_players, length, copies))
+            cursor.execute("INSERT INTO items (name, type, copies) VALUES (?)", (name, "videogame", copies))
+            cursor.execute("SELECT id FROM items WHERE name = ?", (name,))
+            itemID = cursor.fetchone()['id']
+            cursor.execute("INSERT INTO videogames (id, platform, difficulty, min_players, max_players, length) VALUES (?, ?, ?, ?, ?, ?)",
+                           (itemID, platform.value, difficulty.value, min_players, max_players, length))
             self.connection.commit()
         except SQLite.IntegrityError:
             return False
         return True
 
-    def deleteVideogame(self, name: str) -> bool:
+    def deleteVideogame(self, id: int) -> bool:
         cursor = self.connection.cursor()
         try:
-            cursor.execute("DELETE FROM videogames WHERE name = ?", (name,))
+            cursor.execute("DELETE FROM items WHERE id = ?", (id,))
             self.connection.commit()
         except SQLite.IntegrityError:
             return False
@@ -264,45 +316,48 @@ class DatabaseManager:
     def insertBook(self, name: str, author: str, pages: int, genre: str, abstract: str, copies: int) -> bool:
         cursor = self.connection.cursor()
         try:
-            cursor.execute("INSERT INTO books (name, author, pages, genre, abstract, copies) VALUES (?, ?, ?, ?, ?, ?)",
-                           (name, author, pages, genre, abstract, copies))
+            cursor.execute("INSERT INTO items (name, type, copies) VALUES (?)", (name, "book", copies))
+            cursor.execute("SELECT id FROM items WHERE name = ?", (name,))
+            itemID = cursor.fetchone()['id']
+            cursor.execute("INSERT INTO books (id, author, pages, genre, abstract) VALUES (?, ?, ?, ?, ?)",
+                           (itemID, author, pages, genre, abstract))
             self.connection.commit()
         except SQLite.IntegrityError:
             return False
         return True
 
-    def deleteBook(self, name: str) -> bool:
+    def deleteBook(self, id: int) -> bool:
         cursor = self.connection.cursor()
         try:
-            cursor.execute("DELETE FROM books WHERE name = ?", (name,))
+            cursor.execute("DELETE FROM items WHERE id = ?", (id,))
             self.connection.commit()
         except SQLite.IntegrityError:
             return False
         return True
 
-    def editCopies(self, itemType: ObjectType, itemID: int, copies: int) -> bool:
+    def editCopies(self, itemID: int, copies: int) -> bool:
         cursor = self.connection.cursor()
         try:
-            cursor.execute(f"UPDATE {itemType.value} SET copies = ? WHERE id = ?", (copies, itemID))
+            cursor.execute(f"UPDATE items SET copies = ? WHERE id = ?", (copies, itemID))
             self.connection.commit()
         except SQLite.IntegrityError:
             return False
         return True
 
-    def borrowItem(self, user: int, item: int, itemType: ObjectType, planned_return: datetime, retrieval_date: datetime) -> (bool, str):
+    def borrowItem(self, user: int, item: int, planned_return: datetime, retrieval_date: datetime) -> (bool, str):
         cursor = self.connection.cursor()
-        # Check the user has not borrowed the item already
-        cursor.execute("SELECT EXISTS(SELECT 1 FROM borrows WHERE user = ? AND item = ? AND type = ?) AS already_borrowed", (user, item, itemType.value[:-1]))
-        if cursor.fetchone()['already_borrowed']:
-            return False, "You have already borrowed this item"
-
         # Check the item exists
-        cursor.execute(f"SELECT EXISTS(SELECT 1 FROM {itemType.value} WHERE id = ?) AS item_exists", (item,))
+        cursor.execute("SELECT EXISTS(SELECT 1 FROM items WHERE id = ?) AS item_exists", (item,))
         if not cursor.fetchone()['item_exists']:
             return False, "This item does not exist"
 
+        # Check the user has not borrowed the item already
+        cursor.execute("SELECT EXISTS(SELECT 1 FROM borrows WHERE user = ? AND item = ? AND returned IS NULL) AS already_borrowed", (user, item))
+        if cursor.fetchone()['already_borrowed']:
+            return False, "You are already borrowing this item"
+
         # Check the item is available
-        cursor.execute(f"SELECT copies - IFNULL(br.borrowed_count, 0) AS copies_left FROM {itemType.value} t LEFT JOIN (SELECT item, COUNT(*) AS borrowed_count FROM borrows WHERE type = ? AND returned IS NULL GROUP BY item) br ON t.id = br.item WHERE id = ?", (itemType.value[:-1], item))
+        cursor.execute("SELECT type, copies - IFNULL(br.borrowed_count, 0) AS copies_left FROM items t LEFT JOIN (SELECT item, COUNT(*) AS borrowed_count FROM borrows WHERE returned IS NULL GROUP BY item) br ON t.id = br.item WHERE id = ?", (item,))
         copies_left = cursor.fetchone()['copies_left']
         if copies_left <= 0:
             return False, "There are no copies left of this item in Piazza"
@@ -316,22 +371,14 @@ class DatabaseManager:
         if retrieval_date < datetime.now():
             return False, "Retrieval date must be in the future"
 
-        cursor.execute("INSERT INTO borrows (user, item, type, amount, planned_return, retrieval_date) VALUES (?, ?, ?, ?, ?, ?)",
-                       (user, item, itemType.value[:-1], 1, planned_return, retrieval_date))
+        cursor.execute("INSERT INTO borrows (user, item, amount, planned_return, retrieval_date) VALUES (?, ?, ?, ?, ?)",
+                       (user, item, 1, planned_return, retrieval_date))
+
+        cursor.execute("SELECT name FROM items WHERE id = ?", (item,))
+        item_name = cursor.fetchone()['name']
 
         self.connection.commit()
-        return True, "Item borrowed successfully"
-
-    def returnItem(self, user: int, item: int, itemType: ObjectType) -> (bool, str):
-        cursor = self.connection.cursor()
-        cursor.execute("SELECT EXISTS(SELECT 1 FROM borrows WHERE user = ? AND item = ? AND type = ? AND returned IS NULL) AS borrowed", (user, item, itemType.value[:-1]))
-        if not cursor.fetchone()['borrowed']:
-            return False, "You have not borrowed this item"
-
-        cursor.execute("UPDATE borrows SET returned = ? WHERE user = ? AND item = ? AND type = ? AND returned IS NULL",
-                       (datetime.now(), user, item, itemType.value[:-1]))
-        self.connection.commit()
-        return True, "Item returned successfully"
+        return True, f"Item '{item_name}' borrowed successfully"
 
     def execute(self, query: str) -> (bool, str):
         try:

@@ -7,7 +7,7 @@ from src.database import DatabaseManager
 
 
 class BorrowPaginator(disnake.ui.View):
-    def __init__(self, size: int, initialEmbed: Embed, db: DatabaseManager, user: int = None):
+    def __init__(self, size: int, initialEmbed: Embed, db: DatabaseManager, user: int = None, current: bool = True):
         super().__init__(timeout=30)
         self.db = db
         self.msg = None
@@ -16,6 +16,7 @@ class BorrowPaginator(disnake.ui.View):
         self.pages = size
         self.user = user
         self.embed: Embed = initialEmbed
+        self.current = current
 
         self.first_page.disabled = True
         self.prev_page.disabled = True
@@ -25,7 +26,7 @@ class BorrowPaginator(disnake.ui.View):
     async def changeEmbed(self, interaction):
         start = self.embed_index * 10
         end = start + 10
-        self.embed = await self.db.getBorrowsListEmbed((start, end), interaction, self.user)
+        self.embed = await self.db.getBorrowsListEmbed((start, end), interaction, self.user, self.current)
         self.embed.set_footer(text="page {} of {}".format(self.embed_index + 1, self.pages))
 
         self.prev_page.disabled = self.embed_index == 0
