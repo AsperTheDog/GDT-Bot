@@ -1,106 +1,106 @@
-name,author,pages,tags
-Call of Cthulu,H.P. Lovecraft,44,"novel, horror, fiction, fantasy"
-Call of Cthulu (Sverige),H.P. Lovecraft,45,"novel, horror, fiction, fantasy"
-Dungeons and Dragons: Dungeon Master's Guide,Wizards of the Coast ,320,"ttrpg, rules, fantasy"
-Dungeons and Dragons: Monster Manual,Wizards of the Coast ,352,"ttrpg, rules, fantasy"
-Dungeons and Dragons: Player's Handbook,Wizards of the Coast ,320,"ttrpg, rules, fantasy"
-Cyberpunk Red: The Roleplaying Game of the Dark Future,Michael Pondsmith,455,"ttrpg, rules, science fiction"
-Vampire: The Masquerade,Kenneth Hite,425,"ttrpg, rules, fantasy, dark fantasy"
-Dark Souls: The Roleplaying Game,Richard August,380,"ttrpg, rules, fantasy, dark fantasy"
-Blade Runner: The Roleplaying Game,Joe LeFavi,231,"ttrpg, rules, science fiction"
-Blades in the Dark,John Harper,327,"ttrpg, rules, fantasy"
-Monster of the Week,Steve Hickey,320,"ttrpg, rules, fantasy"
-Night Witches,L.J. Adlington,80,"novel, fantasy"
-Torchbearer: Scholar's Guide,Thor Olavsrud,320,"ttrpg, rules, fantasy"
-Torchbearer Dungeoneer's Handbook,Thor Olavsrud,256,"ttrpg, rules, fantasy"
-Pirate Borg,Luke Stratton,167,"ttrpg, rules, fantasy, horror"
-M���,Pelle Nilsson,88,"ttrpg, rules, fantasy, dark fantasy, horror"
-Alice is Missing,Spenser Starke,48,"ttrpg, rules, mystery"
-A Mind Forever Voyaging: A History of Storytelling in Video Games,Dylan Holmes,248,"textbook, academic, video games, narrative, history"
-Dialect: A Game About Language and How It Dies,Hakan Seyalioglu,150,"academic, board games"
-Tabletop Gaming Manual,Matt Thrower,192,"academic, board games"
-Postmortems,S.A. Magnusson,358,"novel, fantasy"
-"Computer Games: Text, Narrative and Play",Diane Carr,224,"academic, video games"
-Introduction to Game Development,Steve Rabin,980,"textbook, academic, video games, programming"
-HCI Beyond the GUI,,,
-HTML5 Games 2nd Edition,,,
-Holistic Mobile Game Development with Unity,,,
-Beginning Math and Physics for Game Programmers,,,
-Distinctive Design,,,
-Designing Virtual Worlds,,,
-HTML5 Game Development Insights,,,
-Quests,,,
-Level Up! The Guide to Great Video Game Design,,,
-Game Character Creation with Blender and Unity,,,
-Vintage Games,,,
-Creating Interactive Fiction with Inform 7,,,
-Unity Game Development,,,
-"Introduction to Game Design, Prototyping, and Development",,,
-The Web Game Developer's Cookbook,,,
-AI for Game Developers,,,
-The Game Production Handbook,,,
-Comic-Con and the Business of Pop Culture,,,
-Letterati,,,
-Synthetic Worlds,,,
-Of Dice and Men,,,
-My Tiny Life,,,
-On The Edge The Spectacular Rise and Fall of Commodore,,,
-Fun Inc.,,,
-Honoring The Code Conversations with Great Game Designers,,,
-Mapping Cyberspace,,,
-Empire of Imagination Gary Gygax and the Birth of Dungeons and Dragons,,,
-Computer Games and the Social Imaginary,,,
-A Case Study for Computer Ethics in Context,,,
-Tabletop Game Accessibility Meeple Centred Design,,,
-Evil By Design Interaction Design to lead us into temptation,,,
-Secrets of the MUD wizards,,,
-Tabletop Game Design for Video Game Designers,,,
-Dynamics of Software Development,,,
-Desigining the Requirements,,,
-Alternate Reality Games,,,
-The Design of Everyday Things,,,
-Twisty Little Passages,,,
-The A-Z of Cool Computer Games,,,
-Fantasy Freaks and Gaming Geeks,,,
-"G������del, Escher, Bach: an Ete",,,
-Rebel Code,,,
-Women in Game Development,,,
-The Cathedral and the Bazaar,,,
-Cybertext,,,
-The Official Book of Ultima,,,
-Playing MUDs on the Internet,,,
-Dungeons and Dreamers The Rise of Computer Game Culture From Geek to Chic,,,
-Making Deep Games,,,
-Games as Texts,,,
-Feminist War Games?,,,
-Gamers At Work,,,
-Coders At Work,,,
-"The Monopolists Obsession, Fury, and the Scandal behind the world's favorite board game",,,
-Nudge,,,
-Accidental Empires,,,
-Out of Sight,,,
-Unity 4 Fundamentals,,,
-Mass Effect: Redemption,,,
-Mass Effect: Evolution,,,
-Mass Effect: Invasion,,,
-Insanely Great,,,
-How to be a Social Entrepreneur,,,
-What Computers Can't Do,,,
-Hello World Being Human in the Age of Algorithms,,,
-Team Geek,,,
-Jacked,,,
-"Play Money: Or, How I quit my day job and made millions trading virtual loot",,,
-Life Is Strange: Steph's Story,,,
-Masters of Doom,,,
-"Blood, Sweat, and Pixels",,,
-Enterprise Games,,,
-Usability Engineering,,,
-Design is Storytelling,,,
-Where Wizards Stay Up Late: The Origins of the Internet,,,
-The Computer Book,,,
-Apple Confidential 2.0,,,
-Swords and Circuitry A Designer's Guide to Computer Role-Playing Games,,,
-Virtual Clothing,,,
-Animating Facial Features and Expressions 2nd Edition,,,
-Game Physics,,,
-GPGPU Programming for Games and Science,,,
+name;author;pages;tags;
+Call of Cthulu;H.P. Lovecraft;44;literature, novel, horror, fiction, fantasy;
+Call of Cthulu (Sverige);H.P. Lovecraft;45;literature, novel, horror, fiction, fantasy;
+Dungeons and Dragons: Dungeon Master's Guide;Wizards of the Coast ;320;ttrpg, rules, fantasy;
+Dungeons and Dragons: Monster Manual;Wizards of the Coast ;352;ttrpg, rules, fantasy;
+Dungeons and Dragons: Player's Handbook;Wizards of the Coast ;320;ttrpg, rules, fantasy;
+Cyberpunk Red: The Roleplaying Game of the Dark Future;Michael Pondsmith;455;ttrpg, rules, science fiction;
+Vampire: The Masquerade;Kenneth Hite;425;ttrpg, rules, fantasy, dark fantasy;
+Dark Souls: The Roleplaying Game;Richard August;380;ttrpg, rules, fantasy, dark fantasy;
+Blade Runner: The Roleplaying Game;Joe LeFavi;231;ttrpg, rules, science fiction;
+Blades in the Dark;John Harper;327;ttrpg, rules, fantasy;
+Monster of the Week;Steve Hickey;320;ttrpg, rules, fantasy;
+Night Witches;L.J. Adlington;80;novel, fantasy;
+Torchbearer: Scholar's Guide;Thor Olavsrud;320;ttrpg, rules, fantasy;
+Torchbearer Dungeoneer's Handbook;Thor Olavsrud;256;ttrpg, rules, fantasy;
+Pirate Borg;Luke Stratton;167;ttrpg, rules, fantasy, horror;
+Mï¿½ï¿½ï¿;Pelle Nilsson;88;ttrpg, rules, fantasy, dark fantasy, horror;
+Alice is Missing;Spenser Starke;48;ttrpg, rules, mystery;
+A Mind Forever Voyaging: A History of Storytelling in Video Games;Dylan Holmes;248;textbook, academic, video games, narrative, history;
+Dialect: A Game About Language and How It Dies;Hakan Seyalioglu;150;academic, board games;
+Tabletop Gaming Manual;Matt Thrower;192;academic, board games;
+Postmortems;S.A. Magnusson;358;literature, novel, fantasy;
+Computer Games: Text, Narrative and Play;Diane Carr;224;academic, video games;
+Introduction to Game Development;Steve Rabin;980;textbook, academic, video games, programming;
+HCI Beyond the GUI;Philip Kortum;480;textbook, academic, interface design;
+HTML5 Games 2nd Edition;Aditya Ravi Shankar;426;textbook, academic, video games, programming;
+Holistic Mobile Game Development with Unity;Penny de Byl;576;textbook, academic, video games, programming;
+Beginning Math and Physics for Game Programmers;Wendy Stahler, Dustin Clingman, Kaveh Kahrizi;475;textbook, academic, video games, math, programming;
+Distinctive Design;Alexander Dawson;330;textbook, academic, interface design, programming;
+Designing Virtual Worlds;Richard A. Bartle;741;textbook, academic, video games, programming;
+HTML5 Game Development Insights;Colt McAnlis, Peter Lubbers, Brandon Jones, Sean Bennett,;476;textbook, academic, video games, programming;
+Quests;Jeff Howard;222;ttrpg, narrative, textbook, game design;
+Level Up! The Guide to Great Video Game Design;Scott Rogers;520;textbook, game design, video games;
+Game Character Creation with Blender and Unity;Chris Totten;320;textbook, game art, video games, programming;
+Vintage Games;Bill Loguidice, Matt Barton;408;textbook, game design, video games;
+Creating Interactive Fiction with Inform 7;Aaron Reed;464;textbook, narrative, game design, programming;
+Unity Game Development;;;;
+Introduction to Game Design, Prototyping, and Development;Jeremy Gibson Bond;944;textbook, academic, game design, video games, programming;
+The Web Game Developer's Cookbook;Evan Burchard;368;textbook, academic, video games, programming;
+AI for Game Developers;David M. Bourg, Glenn Seemann;371;textbook, academic, video games, programming;
+The Game Production Handbook;Heather Maxwell Chandler;462;textbook, academic, game design, video games;
+Comic-Con and the Business of Pop Culture;Rob Salkowitz;304;textbook, comics;
+Letterati;Paul McCarthy;240;academic, board games;
+Synthetic Worlds;Edward Castronova;344;textbook, game design, video games;
+Of Dice and Men;David M. Ewalt;276;journalism, ttrpg;
+My Tiny Life;Julian Dibbell;336;literature, novel, fiction;
+On The Edge The Spectacular Rise and Fall of Commodore;Brian Bagnall;561;academic, video games;
+Fun Inc.;Tom Chatfield;272;academic, video games;
+Honoring The Code Conversations with Great Game Designers;Matt Barton;240;textbook, game design, video games, programming;
+Mapping Cyberspace;Martin Dodge, Rob Kitchin;280;textbook, academic, programming;
+Empire of Imagination Gary Gygax and the Birth of Dungeons and Dragons;Michael Witwer;320;journalism, ttrpg;
+Computer Games and the Social Imaginary;Graeme Kirkpatrick;248;literature, game design, video games;
+A Case Study for Computer Ethics in Context;Michael James Heron, Pauline Helen Belford;346;monopoly, academic;
+Tabletop Game Accessibility Meeple Centred Design;Michael James Heron;248;monopoly, academic, accessibility, board games;
+Evil By Design Interaction Design to lead us into temptation;Chris Nodder;320;textbook, interaction design;
+Secrets of the MUD wizards;Andrew Busey;519;textbook, ttrpg, fantasy;
+Tabletop Game Design for Video Game Designers;Ethan Ham;348;textbook, board games, video games, game design;
+Dynamics of Software Development;Jim McCarthy;184;academic, programming;
+Desigining the Requirements;Chris Britton;372;textbook, academic, interaction design;
+Alternate Reality Games;Charles Palmer;130;textbook, video games, programming;
+The Design of Everyday Things;Don Norman;384;textbook, academic, interaction design;
+Twisty Little Passages;Nick Montfort;286;textbook, narrative, fiction, game design;
+The A-Z of Cool Computer Games;Jack Railton;287;literature, video games;
+Fantasy Freaks and Gaming Geeks;Ethan Gilsdorf;336;literature, fantasy;
+Gï¿½ï¿½ï¿½ï¿½ï¿½ï¿½del, Escher, Bach: an Ete;;;;
+Rebel Code;Glyn Moody;344;literature, programming;
+Women in Game Development;Jennifer Brandes Hepler;238;literature, game design, video games;
+The Cathedral and the Bazaar;Eric S. Raymond;241;literature, programming;
+Cybertext;Espen J. Aarseth;203;literature, video games;
+The Official Book of Ultima;;;;
+Playing MUDs on the Internet;Rawn Shah, Jim Romine;328;ttrpg, textbook, fantasy;
+Dungeons and Dreamers The Rise of Computer Game Culture From Geek to Chic;Brad King, John M. Borland;273;literature, biography, video games;
+Making Deep Games;Doris C. Rusch;228;literature, game design, video games;
+Games as Texts;Alayna Cole, Dakoda Barker;138;textbook, game design, video games;
+Feminist War Games?;Alyssa Arbuckle, Jon Bath, Jon Saklofske;228;academic, video games;
+Gamers At Work;Morgan Ramsay;356;literature, game design, video games;
+Coders At Work;Peter Seibel;632;literature, programming;
+The Monopolists Obsession, Fury, and the Scandal behind the world's favorite board game;Mary Pilon;320;literature, biography, board games;
+Nudge;Richard H. Thaler, Cass R Sunstein;384;textbook, self-help;
+Accidental Empires;Robert X. Cringely;370;literature;
+Out of Sight;Elmore Leonard;352;novel, mystery, fiction;
+Unity 4 Fundamentals;Alan Thorn;302;textbook, video games, programming;
+Mass Effect: Redemption;Marc Walters, John Jackson Miller, Omar Francia;96;comic, fantasy, science fiction;
+Mass Effect: Evolution;Marc Walters, John Jackson Miller, Omar Francia;96;comic, fantasy, science fiction;
+Mass Effect: Invasion;Marc Walters, John Jackson Miller, Omar Francia;96;comic, fantasy, science fiction;
+Insanely Great;Steven Levy;336;literature;
+How to be a Social Entrepreneur;Robert Ashton;304;literature;
+What Computers Can't Do;Hubert L. Dreyfus;354;literature, academic;
+Hello World Being Human in the Age of Algorithms;Hannah Fry;243;literature, academic, programming;
+Team Geek;Brian Fitzpatrick, Ben Collins-Sussman;167;textbook;
+Jacked;Carrie Mac;128;novel, fiction;
+Play Money: Or, How I quit my day job and made millions trading virtual loot;Julian Dibbell;336;novel, non-fiction, video games;
+Life Is Strange: Steph's Story;Rosiee Thor;320;novel, fiction, video games;
+Masters of Doom;David Kushner;352;biography, video games;
+Blood, Sweat, and Pixels;Jason Schreier;304;literature, game design, video games;
+Enterprise Games;Michael Hugos;199;textbook, video games;
+Usability Engineering;Jakob Nielsen;362;textbook, academic, interface design, programming;
+Design is Storytelling;Ellen Lupton;159;self-help, report, interaction design;
+Where Wizards Stay Up Late: The Origins of the Internet;Matthew Lyon, Katie Hafner;304;academic, computer science;
+The Computer Book;Simson L Garfinkel, Rachel H. Grunspan;528;computer science;
+Apple Confidential 2.0;Owen W. Linzmayer;323;literature, non-fiction;
+Swords and Circuitry A Designer's Guide to Computer Role-Playing Games;Neal Hallford, Jana Hallford;514;textbook, game design, video games;
+Virtual Clothing;Pascal Volino, Nadia Magnenat-Thalmann;283;textbook, video games, programming;
+Animating Facial Features and Expressions 2nd Edition;David J. Kalwick;391;textbook, video games, programming;
+Game Physics;Ian Millington;522;textbook, video games, programming;
+GPGPU Programming for Games and Science;David H. Eberly;469;textbook, video games, programming;
