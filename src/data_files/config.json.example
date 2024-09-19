@@ -5,7 +5,8 @@
     },
     "debug": {
         "syncCommandsDebug": false,
-        "testGuilds": []
+        "testGuilds": [],
+        "error_log_channel": 0
     },
     "database": {
         "path": "database/database.sqlite"

@@ -163,6 +163,5 @@ cython_debug/
 
 # Project files
 src/data_files/config.json
-src/data_files/boardgames.csv
 src/data_files/database.sqlite
 src/test.py
