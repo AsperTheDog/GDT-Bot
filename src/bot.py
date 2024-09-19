@@ -1,5 +1,7 @@
 import json
 import os
+import sys
+import traceback
 from dataclasses import dataclass
 
 from disnake import ApplicationCommandInteraction, Embed, Color
@@ -72,8 +74,11 @@ def main():
         embed.add_field(name="User", value=inter.author.mention)
         embed.add_field(name="Channel", value=inter.channel.mention)
         embed.set_footer(text=str(inter.created_at.strftime("%Y-%m-%d %H:%M:%S")))
-        print(f"Error in command '{inter.application_command.name}' by {inter.author}: {error}")
         await inter.guild.get_channel(client.error_logs_channel).send(embed=embed)
+
+        command = inter.application_command
+        print(f"Ignoring exception in slash command {command.name!r}:", file=sys.stderr)
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
     client.add_cog(GamesCog(client))
     client.add_cog(GeneralCog(client))
