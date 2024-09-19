@@ -1,4 +1,4 @@
-id,name,play_difficulty,learn_difficulty,min_players,max_players,length,copies
+bgg_id,name,play_difficulty,learn_difficulty,min_players,max_players,length,copies
 346703,7 Wonders: Architects,0,0,2,7,25,1
 172818,Above and Below,0,0,2,4,90,1
 200680,Agricola (Revised Edition),0,0,1,4,120,1
