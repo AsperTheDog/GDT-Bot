@@ -138,9 +138,6 @@ class GamesCog(Cog):
         except ValueError:
             success = False
             message = "Error parsing dates, please use the format YYYY-MM-DD"
-        except KeyError:
-            success = False
-            message = "Invalid item type, options are: book, boardgame, videogame"
         else:
             try:
                 itemID = int(item)

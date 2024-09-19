@@ -96,7 +96,7 @@ class DatabaseManager:
                             else:
                                 specificData[key] = value
                         cursor.execute(f"INSERT INTO items ({', '.join(itemData.keys())}) VALUES ({', '.join(['?' for _ in itemData.keys()])})", list(itemData.values()))
-                        cursor.execute(f"SELECT id FROM items WHERE name = ?", (itemData['name'],))
+                        cursor.execute(f"SELECT id FROM items WHERE LOWER(name) = LOWER(?)", (itemData['name'],))
                         specificData['id'] = cursor.fetchone()[0]
                         cursor.execute(f"INSERT INTO {table} ({', '.join(specificData.keys())}) VALUES ({', '.join(['?' for _ in specificData.keys()])})", list(specificData.values()))
 
@@ -105,7 +105,7 @@ class DatabaseManager:
 
     def getItemIDFromName(self, name: str) -> int:
         cursor = self.connection.cursor()
-        cursor.execute("SELECT id FROM items WHERE name = ?", (name,))
+        cursor.execute("SELECT id FROM items WHERE LOWER(name) = LOWER(?)", (name,))
         data = cursor.fetchone()
         return data['id'] if data is not None else -1
 
@@ -145,7 +145,7 @@ class DatabaseManager:
 
     def getItemEmbed(self, itemType: ObjectType, itemID: int, extended: bool) -> Embed | None:
         def getBoardgameEmbed(data: dict) -> Embed:
-            color: Color = Color.dark_green() if data['copies_left'] > 0 else Color.red()
+            color: Color = Color.dark_green() if data['copies_left'] > 0 else Color.orange()
             embed = Embed(title=data['name'] + (f" ({itemID})" if not extended else ""), color=color)
             if extended:
                 embed.add_field(name="ID", value=data['id'], inline=False)
@@ -162,7 +162,7 @@ class DatabaseManager:
             return embed
 
         def getVideogameEmbed(data: dict) -> Embed:
-            color: Color = Color.dark_green() if data['copies_left'] > 0 else Color.red()
+            color: Color = Color.dark_green() if data['copies_left'] > 0 else Color.orange()
             embed = Embed(title=data['name'] + (f" ({itemID})" if not extended else ""), color=color)
             if extended:
                 embed.add_field(name="ID", value=data['id'], inline=False)
@@ -176,7 +176,7 @@ class DatabaseManager:
             return embed
 
         def getBookEmbed(data: dict) -> Embed:
-            color: Color = Color.dark_green() if data['copies_left'] > 0 else Color.red()
+            color: Color = Color.dark_green() if data['copies_left'] > 0 else Color.orange()
             embed = Embed(title=data['name'] + (f" ({itemID})" if not extended else ""), color=color)
             if extended:
                 embed.add_field(name="ID", value=data['id'], inline=False)
@@ -221,12 +221,16 @@ class DatabaseManager:
         else:
             titleAppend = ""
         embed = Embed(title="Items borrowed" + titleAppend, color=Color.dark_gold())
-        embed.add_field(name="User", value="\n".join([(await inter.guild.fetch_member(entry['user'])).mention for entry in data]), inline=True)
+        if user is None:
+            embed.add_field(name="User", value="\n".join([(await inter.guild.fetch_member(entry['user'])).mention for entry in data]), inline=True)
         embed.add_field(name="Item (type)", value="\n".join([str(entry['name']) + f" ({entry['type'].value[:-1]})" for entry in data]), inline=True)
         if current:
             embed.add_field(name="Copies left", value="\n".join([str(entry['available_copies']) for entry in data]), inline=True)
+
         else:
             embed.add_field(name="Returned", value="\n".join([entry['returned'].strftime("%d/%m/%Y") for entry in data]), inline=True)
+        if user:
+            embed.add_field(name="Borrowed date", value="\n".join([entry['retrieval_date'].strftime("%d/%m/%Y") for entry in data]), inline=True)
         return embed
 
     def getBorrowsAmount(self, user: int, current: bool) -> int:
@@ -273,7 +277,7 @@ class DatabaseManager:
         cursor = self.connection.cursor()
         try:
             cursor.execute("INSERT INTO items (name, type, copies) VALUES (?)", (name, "boardgame", copies))
-            cursor.execute("SELECT id FROM items WHERE name = ?", (name,))
+            cursor.execute("SELECT id FROM items WHERE LOWER(name) = LOWER(?)", (name,))
             itemID = cursor.fetchone()['id']
             cursor.execute("INSERT INTO boardgames (id, bgg_id, play_difficulty, learn_difficulty, min_players, max_players, length) VALUES (?, ?, ?, ?, ?, ?, ?)",
                            (itemID, bggCode, play_difficulty.value, learn_difficulty.value, min_players, max_players, length))
@@ -295,7 +299,7 @@ class DatabaseManager:
         cursor = self.connection.cursor()
         try:
             cursor.execute("INSERT INTO items (name, type, copies) VALUES (?)", (name, "videogame", copies))
-            cursor.execute("SELECT id FROM items WHERE name = ?", (name,))
+            cursor.execute("SELECT id FROM items WHERE LOWER(name) = LOWER(?)", (name,))
             itemID = cursor.fetchone()['id']
             cursor.execute("INSERT INTO videogames (id, platform, difficulty, min_players, max_players, length) VALUES (?, ?, ?, ?, ?, ?)",
                            (itemID, platform.value, difficulty.value, min_players, max_players, length))
@@ -317,7 +321,7 @@ class DatabaseManager:
         cursor = self.connection.cursor()
         try:
             cursor.execute("INSERT INTO items (name, type, copies) VALUES (?)", (name, "book", copies))
-            cursor.execute("SELECT id FROM items WHERE name = ?", (name,))
+            cursor.execute("SELECT id FROM items WHERE LOWER(name) = LOWER(?)", (name,))
             itemID = cursor.fetchone()['id']
             cursor.execute("INSERT INTO books (id, author, pages, genre, abstract) VALUES (?, ?, ?, ?, ?)",
                            (itemID, author, pages, genre, abstract))
@@ -396,6 +400,7 @@ class DatabaseManager:
         if filterToken['key'] == "name":
             value = '%' + filterToken['value'] + '%'
             op = "LIKE"
+            return f"LOWER({filterToken['key']}) {op} LOWER(?)", value
         return f"{filterToken['key']} {op} ?", value
 
     @staticmethod
