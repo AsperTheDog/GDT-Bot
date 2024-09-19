@@ -4,7 +4,8 @@ SELECT
     i.id,
     i.type,
     i.copies - b.amount AS available_copies,
-    b.returned
+    b.returned,
+    b.retrieval_date
 FROM
     items i
 JOIN

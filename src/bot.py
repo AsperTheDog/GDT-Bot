@@ -24,6 +24,7 @@ class BotConfigData:
     # DEBUG
     syncCommandsDebug: bool
     testGuilds: [int]
+    errorLogsChannel: int
 
 
 def configure() -> BotConfigData | None:
@@ -38,7 +39,8 @@ def configure() -> BotConfigData | None:
             token=data["security"]["token"],
             ownerIDs=data["security"]["ownerIDs"],
             syncCommandsDebug=data["debug"]["syncCommandsDebug"],
-            testGuilds=data["debug"]["testGuilds"]
+            testGuilds=data["debug"]["testGuilds"],
+            errorLogsChannel=data["debug"]["errorLogsChannel"]
         )
 
 
@@ -71,10 +73,11 @@ def main():
         embed.add_field(name="Channel", value=inter.channel.mention)
         embed.set_footer(text=str(inter.created_at.strftime("%Y-%m-%d %H:%M:%S")))
         print(f"Error in command '{inter.application_command.name}' by {inter.author}: {error}")
-        await inter.guild.system_channel.send(embed=embed)
+        await inter.guild.get_channel(client.error_logs_channel).send(embed=embed)
 
     client.add_cog(GamesCog(client))
     client.add_cog(GeneralCog(client))
+    client.error_logs_channel = data.errorLogsChannel
 
     client.run(data.token)
 
