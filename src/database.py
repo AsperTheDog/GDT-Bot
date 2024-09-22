@@ -453,4 +453,4 @@ class DatabaseManager:
             f"SELECT boardgames.bgg_id FROM items JOIN boardgames ON items.id = boardgames.id WHERE items.name LIKE {name}% COLLATE NOCASE"
         ).fetchall()
         ids = [item['bgg_id'] for item in data]
-        return ids if len(data) > 0 else []
+        return ids
