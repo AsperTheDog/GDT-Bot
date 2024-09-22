@@ -10,6 +10,7 @@ from disnake.ext.commands import InteractionBot, CommandSyncFlags, CommandError
 from database import DatabaseManager
 from src.commands.general import GeneralCog
 from src.commands.piazza import GamesCog
+from src.commands.boardgamegeek import BoardGamesCog
 
 configFileName = "data_files/config.json"
 databasePath = "data_files/database.sqlite"
@@ -31,7 +32,6 @@ class BotConfigData:
 
 def configure() -> BotConfigData | None:
     if not os.path.exists(configFileName):
-        with open(f"{configFileName}.example", "r") as example, open(configFileName, "w") as configFile:
             configFile.write(example.read())
         print(f"Please configure the bot by editing '{configFileName}'")
         return None
@@ -82,6 +82,7 @@ def main():
 
     client.add_cog(GamesCog(client))
     client.add_cog(GeneralCog(client))
+    client.add_cog(BoardGamesCog(client))
     client.error_logs_channel = data.errorLogsChannel
 
     client.run(data.token)
