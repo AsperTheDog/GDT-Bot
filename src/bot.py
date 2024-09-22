@@ -32,6 +32,7 @@ class BotConfigData:
 
 def configure() -> BotConfigData | None:
     if not os.path.exists(configFileName):
+        with open(f"{configFileName}.example", "r") as example, open(configFileName, "w") as configFile:
             configFile.write(example.read())
         print(f"Please configure the bot by editing '{configFileName}'")
         return None

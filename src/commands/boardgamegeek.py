@@ -4,7 +4,7 @@ import xmltodict
 from disnake import ApplicationCommandInteraction, Embed, Color
 from disnake.ext.commands import Cog, slash_command
 
-from src.data_files.BoardGameModel import BoardGameModel
+from src.data_models.boardgamemodel import BoardGameModel
 from src.utils.paginator import BoardGamePaginator
 
 
@@ -12,7 +12,7 @@ class BoardGamesCog(Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @slash_command(name="fetchBg", description="Fetch boardgame's information from BGG")
+    @slash_command(name="bggsearch", description="Fetch boardgame's information from BGG")
     async def fetchBoardgame(self, inter: ApplicationCommandInteraction, name: str):
         await inter.response.send_message("Fetching data from BGG...") # ephemeral=True
 

@@ -1,7 +1,7 @@
 import disnake
 from disnake import HTTPException, Embed
 
-from src.data_files.BoardGameModel import BoardGameModel
+from src.data_models.boardgamemodel import BoardGameModel
 from src.database import ObjectType, DatabaseManager
 
 
