@@ -445,3 +445,12 @@ class DatabaseManager:
                 continue
             data.append({"key": key, "operation": operation, "value": converted_value})
         return data
+
+    def getBGGIDFromName(self, name: str) -> [int]:
+        cursor = self.connection.cursor()
+        # remove case sensitivity and return all results that start with 'name' str. BGG can handle up to 20 per request.
+        data = cursor.execute(
+            f"SELECT boardgames.bgg_id FROM items JOIN boardgames ON items.id = boardgames.id WHERE items.name LIKE {name}% COLLATE NOCASE"
+        ).fetchall()
+        ids = [item['bgg_id'] for item in data]
+        return ids
