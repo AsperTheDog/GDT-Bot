@@ -12,7 +12,7 @@ class BoardGamesCog(Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @slash_command(name="bggsearch", description="Fetch boardgame's information from BGG")
+    @slash_command(name="fetchbgg", description="Fetch boardgame's information from BGG")
     async def fetchBoardgame(self, inter: ApplicationCommandInteraction, name: str):
         await inter.response.send_message("Fetching data from BGG...") # ephemeral=True
 
