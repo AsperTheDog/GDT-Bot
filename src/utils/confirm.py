@@ -3,7 +3,7 @@ from typing import Callable
 import disnake
 from disnake import HTTPException, Embed
 
-from src.database import ObjectType, DatabaseManager
+from src.database import ObjectType, DBManager
 
 
 class ConfirmDialog(disnake.ui.View):

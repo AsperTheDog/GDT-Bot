@@ -3,11 +3,11 @@ from http.client import HTTPException
 import disnake
 from disnake import Embed
 
-from src.database import DatabaseManager
+from src.database import DBManager
 
 
 class BorrowPaginator(disnake.ui.View):
-    def __init__(self, size: int, initialEmbed: Embed, db: DatabaseManager, user: int = None, current: bool = True):
+    def __init__(self, size: int, initialEmbed: Embed, db: DBManager, user: int = None, current: bool = True):
         super().__init__(timeout=30)
         self.db = db
         self.msg = None

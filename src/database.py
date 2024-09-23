@@ -4,27 +4,14 @@ import csv
 from datetime import datetime
 
 from enum import Enum
-from typing import Any, Tuple
+from typing import Any
 
 from disnake import Embed, Color, ApplicationCommandInteraction, Member
 
-
-class Difficulty(Enum):
-    UNDEFINED = 0
-    PARTY = 1
-    EASY = 2
-    NORMAL = 3
-    HARD = 4
-    CAMPAIGN = 5
-
-
-class Platform(Enum):
-    UNDEFINED = 0
-    PC = 1
-    PS4 = 2
-    PS5 = 3
-    XBOX = 4
-    SWITCH = 5
+from src.embed_helpers.boardgame import BoardGameObj
+from src.embed_helpers.book import BookObj
+from src.embed_helpers.common import Difficulty, Platform
+from src.embed_helpers.videogame import VideoGameObj
 
 
 class Operation(Enum):
@@ -52,7 +39,7 @@ def dict_factory(cursor, row):
             d[col[0]] = Platform(d[col[0]])
         if col[0] == "type":
             d[col[0]] = ObjectType(d[col[0]] + "s")
-        if col[0] == "returned" or col[0] == "planned_return" or col[0] == "retrieval_date" or col[0] == "register_date":
+        if col[0] in ["returned", "planned_return", "retrieval_date", "register_date", "declared_date"]:
             if d[col[0]] is not None:
                 d[col[0]] = datetime.strptime(d[col[0]], "%Y-%m-%d %H:%M:%S.%f")
             else:
@@ -60,54 +47,92 @@ def dict_factory(cursor, row):
     return d
 
 
-class DatabaseManager:
+class DBManager:
+    instance: 'DBManager' = None
+
     def __init__(self, database: str):
         self.path: str = database
-        self.connection: SQLite.Connection = self._createDatabase(not os.path.exists(database))
-        self.connection.row_factory = dict_factory
+        self._createDatabase(not os.path.exists(database))
         print("Database connection established")
 
     def __del__(self):
         print("Closing database connection...")
         self.connection.close()
 
-    def _createDatabase(self, hardReset: bool = False) -> SQLite.Connection:
+    def _createDatabase(self, hardReset: bool = False):
         print("Initializing database...")
         if hardReset and os.path.exists(self.path):
             os.remove(self.path)
-        connection: SQLite.Connection = SQLite.connect(self.path)
-        cursor: SQLite.Cursor = connection.cursor()
+        self.connection: SQLite.Connection = SQLite.connect(self.path)
+        self.connection.row_factory = dict_factory
+        cursor: SQLite.Cursor = self.connection.cursor()
 
         with open("data_files/queries/generateDB.sql", 'r') as data:
             cursor.executescript(data.read())
 
         if hardReset:
-            print("Populating default data...")
-            for file, table in {"data_files/boardgames.csv": "boardgames",
-                                "data_files/videogames.csv": "videogames"}.items():
-                with open(file, 'r') as data:
-                    dr = csv.DictReader(data)
-                    for entry in dr:
-                        itemData = {"type": table[:-1]}
-                        specificData = {"id": None}
-                        for key, value in entry.items():
-                            if key in ["name", "copies"]:
-                                itemData[key] = value
-                            else:
-                                specificData[key] = value
-                        cursor.execute(f"INSERT INTO items ({', '.join(itemData.keys())}) VALUES ({', '.join(['?' for _ in itemData.keys()])})", list(itemData.values()))
-                        cursor.execute(f"SELECT id FROM items WHERE LOWER(name) = LOWER(?)", (itemData['name'],))
-                        specificData['id'] = cursor.fetchone()[0]
-                        cursor.execute(f"INSERT INTO {table} ({', '.join(specificData.keys())}) VALUES ({', '.join(['?' for _ in specificData.keys()])})", list(specificData.values()))
+            from src.bgg import fetchBGGameData
 
-        connection.commit()
-        return connection
+            print("Populating default data...")
+            with open("data_files/boardgames.csv", 'r') as data:
+                csvData = csv.DictReader(data)
+                games = {}
+                customGames = []
+                for row in csvData:
+                    if row['bgg_id'] == "":
+                        customGames.append(row)
+                    else:
+                        games[row['bgg_id']] = row
+            for game in fetchBGGameData(list(games.keys()), games, lambda x: print(f"Populating DB: {x} games done")):
+                queries = game.getInsertQueries(self.getNextItemID())
+                for query, values in queries:
+                    cursor.execute(query, values)
+            for game in customGames:
+                queries = BoardGameObj.createFromDB(game).getInsertQueries(self.getNextItemID())
+                for query, values in queries:
+                    cursor.execute(query, values)
+
+            with open("data_files/videogames.csv", 'r') as data:
+                csvData = csv.DictReader(data)
+                for entry in csvData:
+                    queries = VideoGameObj.createFromDB(entry).getInsertQueries(self.getNextItemID())
+                    for query, values in queries:
+                        cursor.execute(query, values)
+
+            with open("data_files/books.csv", 'r') as data:
+                csvData = csv.DictReader(data)
+                for entry in csvData:
+                    queries = BookObj.createFromDB(entry).getInsertQueries(self.getNextItemID())
+                    for query, values in queries:
+                        cursor.execute(query, values)
+
+        self.connection.commit()
 
     def getItemIDFromName(self, name: str) -> int:
         cursor = self.connection.cursor()
         cursor.execute("SELECT id FROM items WHERE LOWER(name) = LOWER(?)", (name,))
         data = cursor.fetchone()
+        if data is None:
+            try:
+                itemID = int(name)
+            except ValueError:
+                return -1
+            else:
+                cursor.execute("SELECT EXISTS(SELECT 1 FROM items WHERE id = ?) AS item_exists", (itemID,))
+                return itemID if cursor.fetchone()['item_exists'] else -1
         return data['id'] if data is not None else -1
+
+    def getItemNameFromID(self, id: int) -> str:
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT name FROM items WHERE id = ?", (id,))
+        data = cursor.fetchone()
+        return data['name'] if data is not None else ""
+
+    def getItemAvailableCopies(self, id: int) -> int:
+        cursor = self.connection.cursor()
+        with open("data_files/queries/getItemAvailableCopies.sql", 'r') as data:
+            cursor.execute(data.read(), (id,))
+        return cursor.fetchone()['copies_left']
 
     def getFilteredList(self, itemType: ObjectType, orFilters: str, andFilters: str, ascending: bool = False, limit: int = 0, offset: int = 0) -> [dict]:
         orFilterData = self._parseFilterTokens(orFilters)
@@ -143,52 +168,7 @@ class DatabaseManager:
         cursor.execute(query, arguments)
         return cursor.fetchall()
 
-    def getItemEmbed(self, itemType: ObjectType, itemID: int, extended: bool) -> Embed | None:
-        def getBoardgameEmbed(data: dict) -> Embed:
-            color: Color = Color.dark_green() if data['copies_left'] > 0 else Color.orange()
-            embed = Embed(title=data['name'] + (f" ({itemID})" if not extended else ""), color=color)
-            if extended:
-                embed.add_field(name="ID", value=data['id'], inline=False)
-            embed.add_field(name="Players", value=f"{data['min_players']} - {data['max_players']}", inline=False)
-            if not extended:
-                embed.add_field(name="Difficulty", value=f"Play: {data['play_difficulty'].name.lower()} - Learn: {data['learn_difficulty'].name.lower()}", inline=False)
-            else:
-                embed.add_field(name="Play difficulty", value=f"{data['play_difficulty'].name.lower()}")
-                embed.add_field(name="Learn difficulty", value=f"{data['learn_difficulty'].name.lower()}")
-            embed.add_field(name="Length", value=f"{data['length']} minutes", inline=False)
-            embed.add_field(name="Copies in Piazza", value=data['copies_left'])
-            if extended:
-                embed.add_field(name="Total copies", value=data['copies'])
-            return embed
-
-        def getVideogameEmbed(data: dict) -> Embed:
-            color: Color = Color.dark_green() if data['copies_left'] > 0 else Color.orange()
-            embed = Embed(title=data['name'] + (f" ({itemID})" if not extended else ""), color=color)
-            if extended:
-                embed.add_field(name="ID", value=data['id'], inline=False)
-            embed.add_field(name="Players", value=f"{data['min_players']} - {data['max_players']}", inline=False)
-            embed.add_field(name="Difficulty", value=f"{data['difficulty'].name.lower()}", inline=False)
-            embed.add_field(name="Length", value=f"{data['length']} minutes", inline=False)
-            embed.add_field(name="Platform", value=f"{data['platform'].name.lower()}", inline=False)
-            embed.add_field(name="Copies in Piazza", value=data['copies_left'])
-            if extended:
-                embed.add_field(name="Total copies", value=data['copies'])
-            return embed
-
-        def getBookEmbed(data: dict) -> Embed:
-            color: Color = Color.dark_green() if data['copies_left'] > 0 else Color.orange()
-            embed = Embed(title=data['name'] + (f" ({itemID})" if not extended else ""), color=color)
-            if extended:
-                embed.add_field(name="ID", value=data['id'], inline=False)
-            embed.add_field(name="Author", value=data['author'], inline=False)
-            embed.add_field(name="Pages", value=data['pages'], inline=False)
-            embed.add_field(name="Genre", value=data['genre'], inline=False)
-            embed.add_field(name="Copies in Piazza", value=data['copies_left'])
-            if extended:
-                embed.add_field(name="Total copies", value=data['copies'])
-                embed.add_field(name="Abstract", value=data['abstract'], inline=False)
-            return embed
-
+    def getItemData(self, itemType: ObjectType, itemID: int) -> BoardGameObj | VideoGameObj | BookObj | None:
         cursor = self.connection.cursor()
         with open("data_files/queries/getItem.sql", 'r') as data:
             cursor.execute(data.read().format(itemType.value), (itemType.value[:-1], itemID))
@@ -196,25 +176,33 @@ class DatabaseManager:
         if queryResult is None:
             return None
         if itemType.value == ObjectType.BOARDGAME.value:
-            return getBoardgameEmbed(queryResult)
+            return BoardGameObj.createFromDB(queryResult)
         elif itemType.value == ObjectType.VIDEOGAME.value:
-            return getVideogameEmbed(queryResult)
+            return VideoGameObj.createFromDB(queryResult)
         else:
-            return getBookEmbed(queryResult)
+            return BookObj.createFromDB(queryResult)
 
-    async def getBorrowsListEmbed(self, pageRange: (int, int), inter: ApplicationCommandInteraction, user: int = None, current: bool = True) -> Embed:
+    def getBorrowsList(self, pageRange: (int, int), user: int = None, item: int = None, current: bool = None):
         cursor = self.connection.cursor()
         with open("data_files/queries/getMixedList.sql", 'r') as data:
             query = data.read()
-        userFilter = "WHERE user = ?" if user is not None else ""
-        returnFilter = ("WHERE" if userFilter == "" else "AND") + f" returned IS {"" if current else "NOT"} NULL"
-        pageFilter = f" LIMIT {pageRange[1] - pageRange[0]}" + (f" OFFSET {pageRange[0]}" if pageRange[0] > 0 else "")
-        finalFilter = userFilter + returnFilter + pageFilter
-        if userFilter == "":
-            cursor.execute(query.format(finalFilter))
-        else:
-            cursor.execute(query.format(finalFilter), (user,))
-        data = cursor.fetchall()
+        finalFilter = ""
+        args = []
+        if user is not None:
+            args.append(user)
+        if item is not None:
+            args.append(item)
+        finalFilter += "WHERE user = ?" if user is not None else ""
+        if item is not None:
+            finalFilter += ("WHERE" if finalFilter == "" else "AND") + f" item = ?"
+        if current is not None:
+            finalFilter += ("WHERE" if finalFilter == "" else "AND") + f" returned IS {"" if current else "NOT"} NULL"
+        finalFilter += f" LIMIT {pageRange[1] - pageRange[0]}" + (f" OFFSET {pageRange[0]}" if pageRange[0] > 0 else "")
+        cursor.execute(query.format(finalFilter), args)
+        return cursor.fetchall()
+
+    async def getBorrowsListEmbed(self, pageRange: (int, int), inter: ApplicationCommandInteraction, user: int = None, current: bool = True) -> Embed:
+        data = self.getBorrowsList(pageRange, user, None, current)
         if user is not None:
             user: Member = (await inter.guild.fetch_member(user))
             titleAppend: str = " by " + (user.nick if user.nick is not None else user.name)
@@ -247,7 +235,12 @@ class DatabaseManager:
             cursor.execute(data.read())
         return cursor.fetchall()
 
-    def returnItem(self, user: int, item: str) -> (bool, str):
+    def getInterested(self, item: int):
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT user, declared_date FROM interests WHERE item = ?", (item,))
+        return cursor.fetchall(),
+
+    def returnItem(self, user: int, item: int) -> (bool, str):
         cursor = self.connection.cursor()
         cursor.execute("SELECT EXISTS(SELECT 1 FROM items WHERE id = ?) AS item_exists", (item,))
         if not cursor.fetchone()['item_exists']:
@@ -272,18 +265,18 @@ class DatabaseManager:
         self.connection.commit()
         return True
 
-    # TODO: Make method take data from BGG
-    def insertBoardgame(self, bggCode: int, name: str, play_difficulty: Difficulty, learn_difficulty: Difficulty, min_players: int, max_players: int, length: int, copies: int) -> bool:
+    def insertBoardgame(self, bggCode: int, play_difficulty: Difficulty, learn_difficulty: Difficulty, copies: int) -> bool:
         cursor = self.connection.cursor()
-        try:
-            cursor.execute("INSERT INTO items (name, type, copies) VALUES (?)", (name, "boardgame", copies))
-            cursor.execute("SELECT id FROM items WHERE LOWER(name) = LOWER(?)", (name,))
-            itemID = cursor.fetchone()['id']
-            cursor.execute("INSERT INTO boardgames (id, bgg_id, play_difficulty, learn_difficulty, min_players, max_players, length) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                           (itemID, bggCode, play_difficulty.value, learn_difficulty.value, min_players, max_players, length))
-            self.connection.commit()
-        except SQLite.IntegrityError:
-            return False
+        extraData = {bggCode: {
+            "play_difficulty": play_difficulty,
+            "learn_difficulty": learn_difficulty,
+            "copies": copies
+        }}
+        from src.bgg import fetchBGGameData
+        game = fetchBGGameData([bggCode], extraData)
+        queries = game[0].getInsertQueries(self.getNextItemID())
+        for query, values in queries:
+            cursor.execute(query, values)
         return True
 
     def deleteBoardgame(self, id: int) -> bool:
@@ -297,16 +290,18 @@ class DatabaseManager:
 
     def insertVideogame(self, name: str, platform: Platform, difficulty: Difficulty, min_players: int, max_players: int, length: int, copies: int) -> bool:
         cursor = self.connection.cursor()
-        try:
-            cursor.execute("INSERT INTO items (name, type, copies) VALUES (?)", (name, "videogame", copies))
-            cursor.execute("SELECT id FROM items WHERE LOWER(name) = LOWER(?)", (name,))
-            itemID = cursor.fetchone()['id']
-            cursor.execute("INSERT INTO videogames (id, platform, difficulty, min_players, max_players, length) VALUES (?, ?, ?, ?, ?, ?)",
-                           (itemID, platform.value, difficulty.value, min_players, max_players, length))
-            self.connection.commit()
-        except SQLite.IntegrityError:
-            return False
-        return True
+        game = VideoGameObj.createFromDB({
+            "name": name,
+            "platform": platform,
+            "difficulty": difficulty,
+            "min_players": min_players,
+            "max_players": max_players,
+            "length": length,
+            "copies": copies
+        })
+        queries = game.getInsertQueries(self.getNextItemID())
+        for query, values in queries:
+            cursor.execute(query, values)
 
     def deleteVideogame(self, id: int) -> bool:
         cursor = self.connection.cursor()
@@ -319,15 +314,17 @@ class DatabaseManager:
 
     def insertBook(self, name: str, author: str, pages: int, genre: str, abstract: str, copies: int) -> bool:
         cursor = self.connection.cursor()
-        try:
-            cursor.execute("INSERT INTO items (name, type, copies) VALUES (?)", (name, "book", copies))
-            cursor.execute("SELECT id FROM items WHERE LOWER(name) = LOWER(?)", (name,))
-            itemID = cursor.fetchone()['id']
-            cursor.execute("INSERT INTO books (id, author, pages, genre, abstract) VALUES (?, ?, ?, ?, ?)",
-                           (itemID, author, pages, genre, abstract))
-            self.connection.commit()
-        except SQLite.IntegrityError:
-            return False
+        book = BookObj.createFromDB({
+            "name": name,
+            "author": author,
+            "pages": pages,
+            "genre": genre,
+            "abstract": abstract,
+            "copies": copies
+        })
+        queries = book.getInsertQueries(self.getNextItemID())
+        for query, values in queries:
+            cursor.execute(query, values)
         return True
 
     def deleteBook(self, id: int) -> bool:
@@ -383,6 +380,28 @@ class DatabaseManager:
 
         self.connection.commit()
         return True, f"Item '{item_name}' borrowed successfully"
+
+    def declareInterest(self, user: int, item: str | int):
+        if isinstance(item, str):
+            item = self.getItemIDFromName(item)
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT EXISTS(SELECT 1 FROM interests WHERE user = ? AND item = ?) AS already_interested", (user, item))
+        if cursor.fetchone()['already_interested']:
+            return False
+        cursor.execute("INSERT INTO interests (user, item) VALUES (?, ?)", (user, item))
+        self.connection.commit()
+        return True
+
+    def cancelInterest(self, user: int, item: str | int):
+        if isinstance(item, str):
+            item = self.getItemIDFromName(item)
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT EXISTS(SELECT 1 FROM interests WHERE user = ? AND item = ?) AS already_interested", (user, item))
+        if not cursor.fetchone()['already_interested']:
+            return False
+        cursor.execute("DELETE FROM interests WHERE user = ? AND item = ?", (user, item))
+        self.connection.commit()
+        return True
 
     def execute(self, query: str) -> (bool, str):
         try:
@@ -446,11 +465,38 @@ class DatabaseManager:
             data.append({"key": key, "operation": operation, "value": converted_value})
         return data
 
+    def getIDFromBGGID(self, bgg_id: int) -> int:
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT id FROM boardgames WHERE bgg_id = ?", (bgg_id,))
+        data = cursor.fetchone()
+        return data['id'] if data is not None else -1
+
+    def getBBGIDFromID(self, id: int) -> int:
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT bgg_id FROM boardgames WHERE id = ?", (id,))
+        data = cursor.fetchone()
+        return data['bgg_id'] if data is not None else -1
+
     def getBGGIDFromName(self, name: str) -> [int]:
         cursor = self.connection.cursor()
         # remove case sensitivity and return all results that start with 'name' str. BGG can handle up to 20 per request.
-        data = cursor.execute(
-            f"SELECT boardgames.bgg_id FROM items JOIN boardgames ON items.id = boardgames.id WHERE items.name LIKE {name}% COLLATE NOCASE"
-        ).fetchall()
+        cursor.execute(f"SELECT boardgames.bgg_id FROM items JOIN boardgames ON items.id = boardgames.id WHERE LOWER(items.name) LIKE LOWER(?)", ("%" + name + "%",))
+        data = cursor.fetchall()
         ids = [item['bgg_id'] for item in data]
         return ids
+
+    def getNextItemID(self):
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT MAX(id) AS max_id FROM items")
+        elem = cursor.fetchone()['max_id']
+        return elem + 1 if elem is not None else 0
+
+    @staticmethod
+    def initInstance(databasePath):
+        DBManager.instance = DBManager(databasePath)
+
+    @staticmethod
+    def getInstance() -> 'DBManager':
+        if DBManager.instance is None:
+            DBManager.initInstance("data_files/database.sqlite")
+        return DBManager.instance

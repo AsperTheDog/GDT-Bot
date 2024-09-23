@@ -1,12 +1,12 @@
 import disnake
 from disnake import HTTPException, Embed
 
-from src.data_models.boardgamemodel import BoardGameModel
-from src.database import ObjectType, DatabaseManager
+from src.embed_helpers.boardgame import BoardGameObj
+from src.database import ObjectType, DBManager
 
 
 class GamePaginator(disnake.ui.View):
-    def __init__(self, itemsType: ObjectType, items: [int], extended: bool, initialEmbed: Embed, db: DatabaseManager):
+    def __init__(self, itemsType: ObjectType, items: [int], extended: bool, initialEmbed: Embed, db: DBManager):
         super().__init__(timeout=30)
         self.db = db
 
@@ -23,7 +23,7 @@ class GamePaginator(disnake.ui.View):
         self.last_page.disabled = 0 == len(self.items) - 1
 
     async def changeEmbed(self, interaction: disnake.MessageInteraction):
-        self.embed = self.db.getItemEmbed(self.itemsType, self.items[self.embed_index]['id'], self.extended)
+        self.embed = self.db.getItemData(self.itemsType, self.items[self.embed_index]['id']).getEmbed()
         self.embed.set_footer(text="item {} of {}".format(self.embed_index + 1, len(self.items)))
 
         self.prev_page.disabled = self.embed_index == 0
@@ -58,8 +58,9 @@ class GamePaginator(disnake.ui.View):
     async def on_timeout(self) -> None:
         await self.msg.edit(view=None)
 
+
 class BoardGamePaginator(disnake.ui.View):
-    def __init__(self, items: [BoardGameModel], initialEmbed: Embed):
+    def __init__(self, items: [BoardGameObj], initialEmbed: Embed):
         super().__init__(timeout=45)
 
         self.msg = None

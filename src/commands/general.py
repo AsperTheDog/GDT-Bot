@@ -1,6 +1,8 @@
 from disnake import ApplicationCommandInteraction, Permissions, Embed, Color
 from disnake.ext.commands import Cog, slash_command, InteractionBot
 
+from src.database import DBManager
+
 
 class GeneralCog(Cog):
     def __init__(self, bot):
@@ -20,7 +22,7 @@ class GeneralCog(Cog):
     @slash_command(name="executequery", description="Execute a custom query on the database", permissions=Permissions(administrator=True))
     async def executequery(self, inter: ApplicationCommandInteraction, query: str):
         await inter.response.defer()
-        success, result = self.bot.db.execute(query)
+        success, result = DBManager.getInstance().execute(query)
         if len(result) > 4085:
             result = result[:4082] + "..."
         if success:

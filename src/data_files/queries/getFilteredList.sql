@@ -1,13 +1,11 @@
 WITH table_info AS (
     SELECT
-        i.name,
-        i.type,
-        i.copies,
+        i.*,
         t.*
     FROM
         items AS i
     JOIN
-        {0} AS t ON i.id = t.id
+        {0} AS t USING (id)
     WHERE
         i.type = ?
 )

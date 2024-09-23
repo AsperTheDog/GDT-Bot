@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from disnake import ApplicationCommandInteraction, Embed, Color
 from disnake.ext.commands import InteractionBot, CommandSyncFlags, CommandError
 
-from database import DatabaseManager
+from database import DBManager
 from src.commands.general import GeneralCog
 from src.commands.piazza import GamesCog
 from src.commands.boardgamegeek import BoardGamesCog
@@ -48,15 +48,15 @@ def configure() -> BotConfigData | None:
 
 
 def initializeBot(bot: InteractionBot):
-    print(f"Bot is ready as {bot.user}, configuring extra parameters...")
-    bot.db = DatabaseManager(databasePath)
-    print("Configuration finished")
+    print(f"Bot is ready as {bot.user}")
 
 
 def main():
     data: BotConfigData = configure()
     if data is None:
         return
+
+    DBManager.initInstance(databasePath)
 
     client: InteractionBot = InteractionBot(
         command_sync_flags=CommandSyncFlags(sync_commands_debug=data.syncCommandsDebug),
@@ -80,6 +80,8 @@ def main():
         command = inter.application_command
         print(f"Ignoring exception in slash command {command.name!r}:", file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+        msgEmbed = Embed(title="An error occurred", description="An error occurred while processing your command, developers have been notified. Heads will roll...", color=Color.red())
+        await inter.edit_original_response(embed=msgEmbed)
 
     client.add_cog(GamesCog(client))
     client.add_cog(GeneralCog(client))

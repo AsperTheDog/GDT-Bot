@@ -1,38 +1,38 @@
-name,difficulty,platform,min_players,max_players,length
-Mario Kart 8 Deluxe,1,5,1,4,6
-Fire Emblem: Three Houses,4,5,1,1,49
-The Legend of Zelda: Breath of the Wild,3,5,1,1,50
-Super Smash Bros. Ultimate,1,5,1,8,24
-IT TAKES TWO,3,5,2,2,14
-ORI: THE COLLECTION,4,5,1,1,21
-The Legend of Zelda: Tears of the Kingdom,3,5,1,1,59
-Mario + Rabbids: Sparks of Hope,3,5,1,1,20
-Super Mario Maker 2,4,5,1,2,7
-Super Mario Odyssey,3,5,1,2,12
-WarioWare: Move it!,1,5,1,2,2
-SPLATOON 3,3,5,1,1,8
-Subnautica + Subnautica: Below Zero,3,5,1,1,50
-Super Mario Bros. Wonder,2,5,1,4,10
-Animal Crossing: New Horizons,2,5,1,4,105
-Pikmin 4,3,5,1,4,17
-Gran Turismo 7,3,3,1,2,20
-The Callisto Protocol,4,3,1,1,20
-The Last Of Us Part I,4,3,1,1,25
-God of War: Ragnarok,4,3,1,1,25
-Call of Duty: Modern Warfare III,4,3,1,1,25
-Hogwarts Legacy,4,3,1,1,25
-Ratchet & Clank: Rift Apart,3,3,1,1,15
-Elden Ring,4,3,1,1,25
-Spider-Man 2,3,3,1,1,25
-Jedi: Survivor,4,3,1,1,25
-Jedi: Fallen Order,4,2,1,1,25
-Ghost Recon: Breakpoint,4,2,1,1,25
-For Honor,4,2,1,1,25
-Destiny,4,2,1,1,25
-Destiny 2,4,2,1,1,25
-Borderlands: The Handsome Collection,4,2,1,1,25
-Fallout 4,4,2,1,1,25
-Tom Clancy's The Division,4,2,1,1,25
-Borderlands 3,4,2,1,1,25
-Assassin's Creed Syndicate,4,2,1,1,25
-Call of Duty: Modern Warfare,4,2,1,1,25
+name,difficulty,platform,min_players,max_players,length,copies
+Mario Kart 8 Deluxe,1,5,1,4,6,1
+Fire Emblem: Three Houses,4,5,1,1,49,1
+The Legend of Zelda: Breath of the Wild,3,5,1,1,50,1
+Super Smash Bros. Ultimate,1,5,1,8,24,1
+IT TAKES TWO,3,5,2,2,14,1
+ORI: THE COLLECTION,4,5,1,1,21,1
+The Legend of Zelda: Tears of the Kingdom,3,5,1,1,59,1
+Mario + Rabbids: Sparks of Hope,3,5,1,1,20,1
+Super Mario Maker 2,4,5,1,2,7,1
+Super Mario Odyssey,3,5,1,2,12,1
+WarioWare: Move it!,1,5,1,2,2,1
+SPLATOON 3,3,5,1,1,8,1
+Subnautica + Subnautica: Below Zero,3,5,1,1,50,1
+Super Mario Bros. Wonder,2,5,1,4,10,1
+Animal Crossing: New Horizons,2,5,1,4,105,1
+Pikmin 4,3,5,1,4,17,1
+Gran Turismo 7,3,3,1,2,20,1
+The Callisto Protocol,4,3,1,1,20,1
+The Last Of Us Part I,4,3,1,1,25,1
+God of War: Ragnarok,4,3,1,1,25,1
+Call of Duty: Modern Warfare III,4,3,1,1,25,1
+Hogwarts Legacy,4,3,1,1,25,1
+Ratchet & Clank: Rift Apart,3,3,1,1,15,1
+Elden Ring,4,3,1,1,25,1
+Spider-Man 2,3,3,1,1,25,1
+Jedi: Survivor,4,3,1,1,25,1
+Jedi: Fallen Order,4,2,1,1,25,1
+Ghost Recon: Breakpoint,4,2,1,1,25,1
+For Honor,4,2,1,1,25,1
+Destiny,4,2,1,1,25,1
+Destiny 2,4,2,1,1,25,1
+Borderlands: The Handsome Collection,4,2,1,1,25,1
+Fallout 4,4,2,1,1,25,1
+Tom Clancy's The Division,4,2,1,1,25,1
+Borderlands 3,4,2,1,1,25,1
+Assassin's Creed Syndicate,4,2,1,1,25,1
+Call of Duty: Modern Warfare,4,2,1,1,25,1
