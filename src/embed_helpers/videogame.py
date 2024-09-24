@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from disnake import Embed, Color
 
-from src.embed_helpers.common import Difficulty, Platform
+from src.embed_helpers.common import Difficulty, Platform, safeGet
 
 
 @dataclass
@@ -28,19 +28,19 @@ class VideoGameObj:
         if "platform" in boardGameDict and isinstance(boardGameDict["platform"], str):
             boardGameDict["platform"] = Platform(int(boardGameDict["platform"]))
         return VideoGameObj(
-            id=boardGameDict["id"] if "id" in boardGameDict else -1,
-            title=boardGameDict["name"],
-            minPlayers=boardGameDict["min_players"],
-            maxPlayers=boardGameDict["max_players"],
-            playingTime=boardGameDict["length"],
-            copies=boardGameDict["copies"] if "copies" in boardGameDict else 0,
-            copies_available=boardGameDict["available_copies"] if "available_copies" in boardGameDict else -1,
-            difficulty=boardGameDict["difficulty"] if "difficulty" in boardGameDict else Difficulty.UNDEFINED,
-            platform=boardGameDict["platform"] if "platform" in boardGameDict else Platform.UNDEFINED,
-            thumbnail=boardGameDict["thumbnail"] if "thumbnail" in boardGameDict else "https://i.imgur.com/OJhoTqu.png",
-            description=boardGameDict["description"] if "description" in boardGameDict else "No description available",
-            categories=boardGameDict["categories"] if "categories" in boardGameDict else [],
-            length=boardGameDict["length"] if "length" in boardGameDict else 0
+            id=safeGet(boardGameDict, "id", -1),
+            title=safeGet(boardGameDict, "name", "<NO TITLE>"),
+            minPlayers=int(safeGet(boardGameDict, "min_players", -1)),
+            maxPlayers=int(safeGet(boardGameDict, "max_players", -1)),
+            playingTime=int(safeGet(boardGameDict, "length", -1)),
+            copies=int(safeGet(boardGameDict, "copies", 0)),
+            copies_available=int(safeGet(boardGameDict, "available_copies", -1)),
+            difficulty=safeGet(boardGameDict, "difficulty", Difficulty.UNDEFINED),
+            platform=safeGet(boardGameDict, "platform", Platform.UNDEFINED),
+            thumbnail=safeGet(boardGameDict, "thumbnail", "https://i.imgur.com/OJhoTqu.png"),
+            description=safeGet(boardGameDict, "description", "No description available"),
+            categories=safeGet(boardGameDict, "categories", []),
+            length=int(safeGet(boardGameDict, "length", 0))
         )
 
     def getEmbed(self, flags: [str]) -> Embed:
@@ -71,7 +71,7 @@ class VideoGameObj:
 
         embed.add_field(name="Playing Time", value=f"{self.playingTime} minutes", inline=True)
 
-        if "compact" not in flags:
+        if "compact" not in flags and self.difficulty != Difficulty.UNDEFINED:
             embed.add_field(name="Difficulty", value=f"{self.difficulty.name.lower()}", inline=True)
 
         embed.add_field(name="Platform", value=f"{self.platform.name.lower()}", inline=True)

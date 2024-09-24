@@ -2,6 +2,8 @@ from dataclasses import dataclass
 
 from disnake import Embed, Color
 
+from src.embed_helpers.common import safeGet
+
 
 @dataclass
 class BookObj:
@@ -18,15 +20,15 @@ class BookObj:
     @staticmethod
     def createFromDB(bookDict: dict):
         return BookObj(
-            id=bookDict["id"] if "id" in bookDict else -1,
-            title=bookDict["name"],
-            author=bookDict["author"],
-            pages=bookDict["length"],
-            copies=bookDict["copies"],
-            copies_available=bookDict["available_copies"] if "available_copies" in bookDict else -1,
-            thumbnail=bookDict["thumbnail"] if "thumbnail" in bookDict else "https://i.imgur.com/OJhoTqu.png",
-            description=bookDict["description"] if "description" in bookDict else "No description available",
-            categories=bookDict["categories"] if "categories" in bookDict else []
+            id=safeGet(bookDict, "id", -1),
+            title=safeGet(bookDict, "name", "<NO TITLE>"),
+            author=safeGet(bookDict, "author", "<NO AUTHOR>"),
+            pages=int(safeGet(bookDict, "length", -1)),
+            copies=int(safeGet(bookDict, "copies", -1)),
+            copies_available=int(safeGet(bookDict, "available_copies", -1)),
+            thumbnail=safeGet(bookDict, "thumbnail", "https://i.imgur.com/OJhoTqu.png"),
+            description=safeGet(bookDict, "description", "No description available"),
+            categories=safeGet(bookDict, "categories", [])
         )
 
     def getEmbed(self, flags: [str]) -> Embed:

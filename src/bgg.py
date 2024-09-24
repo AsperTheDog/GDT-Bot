@@ -22,6 +22,10 @@ def fetchBGGIDsFromName(name: str):
         if item["@type"] != "boardgame":
             continue
         ids.append(int(item["@id"]))
+    if len(ids) == 0:
+        return None
+    if len(ids) > 200:
+        return ids[:200]
     return ids
 
 

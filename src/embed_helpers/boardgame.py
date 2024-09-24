@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from html import unescape
 from disnake import Embed, Color
 
-from src.embed_helpers.common import Difficulty
+from src.embed_helpers.common import Difficulty, safeGet
 
 BASE_URL: str = f'https://boardgamegeek.com/boardgame/'
 
@@ -33,22 +33,22 @@ class BoardGameObj:
         if "learn_difficulty" in boardGameDict and isinstance(boardGameDict["learn_difficulty"], str):
             boardGameDict["learn_difficulty"] = Difficulty(int(boardGameDict["learn_difficulty"]))
         return BoardGameObj(
-            id=boardGameDict["id"] if "id" in boardGameDict else -1,
-            title=boardGameDict["name"],
-            minPlayers=boardGameDict["min_players"],
-            maxPlayers=boardGameDict["max_players"],
-            playingTime=boardGameDict["length"],
-            copies=boardGameDict["copies"] if "copies" in boardGameDict else 0,
-            copies_available=boardGameDict["available_copies"] if "available_copies" in boardGameDict else 0,
-            bggId=boardGameDict["bgg_id"] if "bgg_id" in boardGameDict else -1,
-            description=boardGameDict["description"] if "description" in boardGameDict else "No description available",
-            learn_difficulty=boardGameDict["learn_difficulty"] if "learn_difficulty" in boardGameDict else Difficulty.UNDEFINED,
-            play_difficulty=boardGameDict["play_difficulty"] if "play_difficulty" in boardGameDict else Difficulty.UNDEFINED,
-            categories=boardGameDict["categories"] if "categories" in boardGameDict else [],
-            rank=boardGameDict["bgg_rank"] if "bgg_rank" in boardGameDict else -1,
-            averageRating=boardGameDict["bgg_average_rating"] if "bgg_average_rating" in boardGameDict else -1.0,
-            bggRating=boardGameDict["bgg_rating"] if "bgg_rating" in boardGameDict else -1.0,
-            thumbnail=boardGameDict["thumbnail"] if "thumbnail" in boardGameDict else "https://i.imgur.com/OJhoTqu.png"
+            id=safeGet(boardGameDict, "id", -1),
+            title=safeGet(boardGameDict, "name", "<NO NAME ERROR>"),
+            minPlayers=safeGet(boardGameDict, "min_players", 0),
+            maxPlayers=safeGet(boardGameDict, "max_players", 0),
+            playingTime=safeGet(boardGameDict, "length", 0),
+            copies=safeGet(boardGameDict, "copies", 0),
+            copies_available=safeGet(boardGameDict, "available_copies", 0),
+            bggId=safeGet(boardGameDict, "bgg_id", -1),
+            description=safeGet(boardGameDict, "description", "No description available"),
+            learn_difficulty=safeGet(boardGameDict, "learn_difficulty", Difficulty.UNDEFINED),
+            play_difficulty=safeGet(boardGameDict, "play_difficulty", Difficulty.UNDEFINED),
+            categories=safeGet(boardGameDict, "categories", []),
+            rank=safeGet(boardGameDict, "bgg_rank", -1),
+            averageRating=safeGet(boardGameDict, "bgg_average_rating", -1.0),
+            bggRating=safeGet(boardGameDict, "bgg_rating", -1.0),
+            thumbnail=safeGet(boardGameDict, "thumbnail", "https://i.imgur.com/OJhoTqu.png")
         )
 
     @staticmethod
@@ -57,34 +57,29 @@ class BoardGameObj:
             bggDict["@id"] = int(bggDict["@id"])
         if extraData is None:
             extraData = {}
-        name = ""
-        if isinstance(bggDict["name"], list):
-            name = bggDict["name"][0]["@value"]
-        elif isinstance(bggDict["name"], dict):
-            name = bggDict["name"]["@value"]
+
         if "play_difficulty" in extraData and isinstance(extraData["play_difficulty"], str):
             extraData["play_difficulty"] = Difficulty(int(extraData["play_difficulty"]))
         if "learn_difficulty" in extraData and isinstance(extraData["learn_difficulty"], str):
             extraData["learn_difficulty"] = Difficulty(int(extraData["learn_difficulty"]))
+        description = safeGet(bggDict, "description", "<NO DESCRIPTION>")
         return BoardGameObj(
-            id=extraData["id"] if "id" in extraData else -1,
-            title=name,
-            minPlayers=bggDict["minplayers"]["@value"],
-            maxPlayers=bggDict["maxplayers"]["@value"],
-            playingTime=bggDict["playingtime"]["@value"],
-            copies=extraData["copies"] if "copies" in extraData else -1,
-            copies_available=extraData["available_copies"] if "available_copies" in extraData else -1,
-            bggId=bggDict["@id"],
-            description=bggDict["description"] if len(bggDict["description"]) < 1024 else bggDict["description"][:1020] + "...",
-            learn_difficulty=extraData["learn_difficulty"] if "learn_difficulty" in extraData else Difficulty.UNDEFINED,
-            play_difficulty=extraData["play_difficulty"] if "play_difficulty" in extraData else Difficulty.UNDEFINED,
-            categories=[category["@value"] for category in bggDict["link"] if category["@type"] == "boardgamecategory"],
-            rank=bggDict["statistics"]["ratings"]["ranks"]["rank"][0]["@value"]
-            if isinstance(bggDict["statistics"]["ratings"]["ranks"]["rank"], list)
-            else bggDict["statistics"]["ratings"]["ranks"]["rank"]["@value"],
-            averageRating=bggDict["statistics"]["ratings"]["average"]["@value"],
-            bggRating=bggDict["statistics"]["ratings"]["bayesaverage"]["@value"],
-            thumbnail=bggDict["thumbnail"]
+            id=safeGet(extraData, "id", -1),
+            title=safeGet(bggDict, ["name/@value", "name/0/@value"], "<NO NAME ERROR>"),
+            minPlayers=int(safeGet(bggDict, "minplayers/@value", -1)),
+            maxPlayers=int(safeGet(bggDict, "maxplayers/@value", -1)),
+            playingTime=int(safeGet(bggDict, "playingtime/@value", -1)),
+            copies=safeGet(extraData, "copies", -1),
+            copies_available=safeGet(extraData, "available_copies", -1),
+            bggId=int(safeGet(bggDict, "@id", "-1")),
+            description=description if len(description) < 1024 else description[:1020] + "...",
+            learn_difficulty=safeGet(extraData, "learn_difficulty", Difficulty.UNDEFINED),
+            play_difficulty=safeGet(extraData, "play_difficulty", Difficulty.UNDEFINED),
+            categories=[safeGet(category, "@value", "Unknown") for category in safeGet(bggDict, "link", []) if safeGet(category, "@type", "") == "boardgamecategory"],
+            rank=safeGet(bggDict, ["statistics/ratings/ranks/rank/0/@value", "statistics/ratings/ranks/rank/@value"], -1),
+            averageRating=float(safeGet(bggDict, "statistics/ratings/average/@value", -1)),
+            bggRating=float(safeGet(bggDict, "statistics/ratings/bayesaverage/@value", -1)),
+            thumbnail=safeGet(bggDict, "thumbnail", "")
         )
 
     def getEmbed(self, flags: [str]) -> Embed:
@@ -120,8 +115,10 @@ class BoardGameObj:
         embed.add_field(name="Playing Time", value=f"{self.playingTime} minutes", inline=True)
 
         if "compact" not in flags:
-            embed.add_field(name="Learning difficulty", value=f"{self.learn_difficulty.name.lower()}", inline=True)
-            embed.add_field(name="Playing difficulty", value=f"{self.play_difficulty.name.lower()}", inline=True)
+            if self.learn_difficulty != Difficulty.UNDEFINED:
+                embed.add_field(name="Learning difficulty", value=f"{self.learn_difficulty.name.lower()}", inline=True)
+            if self.play_difficulty != Difficulty.UNDEFINED:
+                embed.add_field(name="Playing difficulty", value=f"{self.play_difficulty.name.lower()}", inline=True)
         else:
             embed.add_field(name="Difficulty", value=f"{self.play_difficulty.name.lower()} / {self.learn_difficulty.name.lower()}", inline=True)
 

@@ -17,3 +17,20 @@ class Platform(Enum):
     PS5 = 3
     XBOX = 4
     SWITCH = 5
+
+
+def safeGet(dictionary: dict, paths: list[str] | str, default):
+    if not isinstance(paths, list):
+        paths = [paths]
+    for path in paths:
+        val = dictionary
+        try:
+            for key in path.split("/"):
+                if isinstance(val, list):
+                    val = val[int(key)]
+                else:
+                    val = val[key]
+            return val
+        except (KeyError, ValueError):
+            continue
+    return default
