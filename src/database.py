@@ -44,6 +44,8 @@ def dict_factory(cursor, row):
                 d[col[0]] = datetime.strptime(d[col[0]], "%Y-%m-%d %H:%M:%S.%f")
             else:
                 d[col[0]] = None
+        if col[0] == "categories":
+            d[col[0]] = d[col[0]].split(",") if d[col[0]] is not None else []
     return d
 
 
@@ -166,7 +168,18 @@ class DBManager:
                 query += f" OFFSET ? "
                 arguments.append(offset)
         cursor.execute(query, arguments)
-        return cursor.fetchall()
+        items = []
+        match itemType:
+            case ObjectType.BOARDGAME:
+                for entry in cursor.fetchall():
+                    items.append(BoardGameObj.createFromDB(entry))
+            case ObjectType.VIDEOGAME:
+                for entry in cursor.fetchall():
+                    items.append(VideoGameObj.createFromDB(entry))
+            case ObjectType.BOOK:
+                for entry in cursor.fetchall():
+                    items.append(BookObj.createFromDB(entry))
+        return items
 
     def getItemData(self, itemType: ObjectType, itemID: int) -> BoardGameObj | VideoGameObj | BookObj | None:
         cursor = self.connection.cursor()

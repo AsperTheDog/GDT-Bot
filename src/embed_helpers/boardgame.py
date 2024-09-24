@@ -87,7 +87,7 @@ class BoardGameObj:
             thumbnail=bggDict["thumbnail"]
         )
 
-    def getEmbed(self) -> Embed:
+    def getEmbed(self, flags: [str]) -> Embed:
         if self.bggId > 0:
             color = Color.dark_green()
             if self.copies_available >= 0:
@@ -100,12 +100,17 @@ class BoardGameObj:
             embed = Embed(title=self.title, color=Color.dark_green())
 
         embed.set_thumbnail(url=self.thumbnail)
-        embed.add_field(name="Description", value=f"{unescape(self.description)}", inline=False)
 
-        if len(self.categories) > 0:
-            embed.add_field(name="Categories", value=f"{"\n".join(self.categories)}", inline=True)
-        else:
-            embed.add_field(name="Categories", value=f"None", inline=True)
+        if "compact" not in flags:
+            embed.add_field(name="Description", value=f"{unescape(self.description)}", inline=False)
+
+            categoriesStr = "\n".join(self.categories)
+            if "allCats" not in flags and len(self.categories) > 3:
+                categoriesStr = "\n".join(self.categories[:3]) + "..."
+            if len(self.categories) > 0:
+                embed.add_field(name="Categories", value=f"{categoriesStr}", inline=True)
+            else:
+                embed.add_field(name="Categories", value=f"None", inline=True)
 
         if self.minPlayers == self.maxPlayers:
             embed.add_field(name="Players", value=f"{self.minPlayers}", inline=True)
@@ -113,19 +118,25 @@ class BoardGameObj:
             embed.add_field(name="Players", value=f"{self.minPlayers} - {self.maxPlayers}", inline=True)
 
         embed.add_field(name="Playing Time", value=f"{self.playingTime} minutes", inline=True)
-        embed.add_field(name="Learning difficulty", value=f"{self.learn_difficulty.name.lower()}", inline=True)
-        embed.add_field(name="Playing difficulty", value=f"{self.play_difficulty.name.lower()}", inline=True)
-        embed.add_field(name="Rank", value=f"{self.rank if self.rank != -1 else "Not ranked"}", inline=True)
 
-        if self.averageRating == -1.0:
-            embed.add_field(name="Average Rating", value=f"Unknown", inline=True)
+        if "compact" not in flags:
+            embed.add_field(name="Learning difficulty", value=f"{self.learn_difficulty.name.lower()}", inline=True)
+            embed.add_field(name="Playing difficulty", value=f"{self.play_difficulty.name.lower()}", inline=True)
         else:
-            embed.add_field(name="Average Rating", value=f"{self.averageRating}", inline=True)
+            embed.add_field(name="Difficulty", value=f"{self.play_difficulty.name.lower()} / {self.learn_difficulty.name.lower()}", inline=True)
 
-        if self.bggRating == -1.0:
-            embed.add_field(name="BGG Rating", value=f"Unknown", inline=True)
-        else:
-            embed.add_field(name="BGG Rating", value=f"{self.bggRating}", inline=True)
+        if "compact" not in flags:
+            embed.add_field(name="Rank", value=f"{self.rank if self.rank != -1 else "Not ranked"}", inline=True)
+
+            if self.averageRating == -1.0:
+                embed.add_field(name="Average Rating", value=f"Unknown", inline=True)
+            else:
+                embed.add_field(name="Average Rating", value=f"{self.averageRating}", inline=True)
+
+            if self.bggRating == -1.0:
+                embed.add_field(name="BGG Rating", value=f"Unknown", inline=True)
+            else:
+                embed.add_field(name="BGG Rating", value=f"{self.bggRating}", inline=True)
 
         if self.copies != -1:
             embed.add_field(name="Copies", value=f"{self.copies}", inline=True)

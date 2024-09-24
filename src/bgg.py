@@ -2,9 +2,27 @@ from typing import Callable
 
 import requests
 import xmltodict
+from urllib import parse
 
 from src.database import DBManager, ObjectType
 from src.embed_helpers.boardgame import BoardGameObj
+
+
+def fetchBGGIDsFromName(name: str):
+    ids = []
+    url = f"https://boardgamegeek.com/xmlapi2/search?query={parse.quote_plus(name)}"
+    response = requests.get(url)
+    response.raise_for_status()
+    items = xmltodict.parse(response.content)
+    if "items" not in items or "item" not in items["items"]:
+        return None
+    items = items["items"]["item"]
+    items = [items] if isinstance(items, dict) else items
+    for item in items:
+        if item["@type"] != "boardgame":
+            continue
+        ids.append(int(item["@id"]))
+    return ids
 
 
 def fetchBGGameData(ids: [int], extraData: dict = None, updateCallback: Callable[[int], None] = None) -> [BoardGameObj]:
@@ -31,6 +49,8 @@ def fetchBGGameData(ids: [int], extraData: dict = None, updateCallback: Callable
         items = items["items"]["item"]
         items = [items] if isinstance(items, dict) else items
         for item in items:
+            if item["@type"] != "boardgame":
+                continue
             game = BoardGameObj.createFromBGG(item, extraData[item["@id"]] if item["@id"] in extraData else None)
             games.append(game)
         if updateCallback:

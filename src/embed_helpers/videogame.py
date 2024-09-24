@@ -43,15 +43,26 @@ class VideoGameObj:
             length=boardGameDict["length"] if "length" in boardGameDict else 0
         )
 
-    def getEmbed(self) -> Embed:
-        embed = Embed(title=self.title, color=Color.dark_green())
+    def getEmbed(self, flags: [str]) -> Embed:
+        color = Color.dark_green()
+        if self.copies_available >= 0:
+            if self.copies_available == 0:
+                color = Color.red()
+            else:
+                color = Color.green()
+        embed = Embed(title=self.title, color=color)
         embed.set_thumbnail(url=self.thumbnail)
-        embed.add_field(name="Description", value=f"{self.description}", inline=False)
 
-        if len(self.categories) > 0:
-            embed.add_field(name="Categories", value=f"{"\n".join(self.categories)}", inline=True)
-        else:
-            embed.add_field(name="Categories", value=f"None", inline=True)
+        if "compact" not in flags:
+            embed.add_field(name="Description", value=f"{self.description}", inline=False)
+
+            categoriesStr = "\n".join(self.categories)
+            if "allCats" not in flags and len(self.categories) > 3:
+                categoriesStr = "\n".join(self.categories[:3]) + "..."
+            if len(self.categories) > 0:
+                embed.add_field(name="Categories", value=f"{categoriesStr}", inline=True)
+            else:
+                embed.add_field(name="Categories", value=f"None", inline=True)
 
         if self.minPlayers == self.maxPlayers:
             embed.add_field(name="Players", value=f"{self.minPlayers}", inline=True)
@@ -59,7 +70,10 @@ class VideoGameObj:
             embed.add_field(name="Players", value=f"{self.minPlayers} - {self.maxPlayers}", inline=True)
 
         embed.add_field(name="Playing Time", value=f"{self.playingTime} minutes", inline=True)
-        embed.add_field(name="Difficulty", value=f"{self.difficulty.name.lower()}", inline=True)
+
+        if "compact" not in flags:
+            embed.add_field(name="Difficulty", value=f"{self.difficulty.name.lower()}", inline=True)
+
         embed.add_field(name="Platform", value=f"{self.platform.name.lower()}", inline=True)
         return embed
 

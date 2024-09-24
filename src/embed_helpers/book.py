@@ -29,15 +29,26 @@ class BookObj:
             categories=bookDict["categories"] if "categories" in bookDict else []
         )
 
-    def getEmbed(self) -> Embed:
-        embed = Embed(title=self.title, color=Color.dark_green())
+    def getEmbed(self, flags: [str]) -> Embed:
+        color = Color.dark_green()
+        if self.copies_available >= 0:
+            if self.copies_available == 0:
+                color = Color.red()
+            else:
+                color = Color.green()
+        embed = Embed(title=self.title, color=color)
         embed.set_thumbnail(url=self.thumbnail)
-        embed.add_field(name="Description", value=f"{self.description}", inline=False)
 
-        if len(self.categories) > 0:
-            embed.add_field(name="Categories", value=f"{"\n".join(self.categories)}", inline=True)
-        else:
-            embed.add_field(name="Categories", value=f"None", inline=True)
+        if "compact" not in flags:
+            embed.add_field(name="Description", value=f"{self.description}", inline=False)
+
+            categoriesStr = "\n".join(self.categories)
+            if "allCats" not in flags and len(self.categories) > 3:
+                categoriesStr = "\n".join(self.categories[:3]) + "..."
+            if len(self.categories) > 0:
+                embed.add_field(name="Categories", value=f"{categoriesStr}", inline=True)
+            else:
+                embed.add_field(name="Categories", value=f"None", inline=True)
 
         embed.add_field(name="Author", value=f"{self.author}", inline=True)
         embed.add_field(name="Pages", value=f"{self.pages}", inline=True)

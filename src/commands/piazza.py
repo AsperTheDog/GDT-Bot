@@ -6,8 +6,9 @@ from disnake.ext.tasks import loop
 from disnake.ext.commands import Cog, slash_command
 
 from src.database import ObjectType, DBManager
+from src.embed_helpers.common import Difficulty, Platform
 from src.utils.borrow_paginator import BorrowPaginator
-from src.utils.paginator import GamePaginator
+from src.utils.paginator import ItemPaginator
 
 
 class GamesCog(Cog):
@@ -29,17 +30,16 @@ class GamesCog(Cog):
             DBManager.getInstance().setReminderSent(borrow['user'])
         print("Reminders sent at " + datetime.now(tz=pytz.timezone('Europe/Stockholm')).strftime("%Y-%m-%d %H:%M:%S"))
 
-    async def _sendQueryEmbed(self, inter: ApplicationCommandInteraction, itemType: ObjectType, items: [dict], flags: str):
-        game = DBManager.getInstance().getItemData(itemType, items[0]['id'])
-        embed = game.getEmbed()
-        view = GamePaginator(itemType, items, "e" in flags, embed, DBManager.getInstance())
+    async def _sendQueryEmbed(self, inter: ApplicationCommandInteraction, items: list, flags: str):
+        embed = items[0].getEmbed([flag.strip() for flag in flags.split(",")])
+        view = ItemPaginator(items, flags, embed)
         embed.set_footer(text="Use arrows to move between pages")
         view.msg = await inter.original_response()
         await view.msg.edit(embed=embed, view=view)
 
     @slash_command(name="insertbg", description="Insert a new boardgame into the database", permissions=Permissions(administrator=True))
     async def insertBoardgame(self, inter: ApplicationCommandInteraction, bgg_code: int, name: str, min_players: int, max_players: int, length: int, play_difficulty: str = "undefined", learn_difficulty: str = "undefined", copies: int = 1):
-        if DBManager.getInstance().insertBoardgame(bgg_code, name, play_difficulty, learn_difficulty, min_players, max_players, length, copies):
+        if DBManager.getInstance().insertBoardgame(bgg_code, Difficulty(play_difficulty), Difficulty(learn_difficulty), copies):
             embed: Embed = Embed(title="Boardgame inserted", description=f"Boardgame {name} inserted successfully", color=Color.green())
         else:
             embed: Embed = Embed(title="Error inserting boardgame", description=f"Error inserting boardgame {name}, is it already present?", color=Color.red())
@@ -48,7 +48,7 @@ class GamesCog(Cog):
     @slash_command(name="insertvg", description="Insert a new videogame into the database", permissions=Permissions(administrator=True))
     async def insertVideogame(self, inter: ApplicationCommandInteraction, name: str, platform: str, min_players: int, max_players: int, length: int, difficulty: str = "undefined", copies: int = 1):
         await inter.response.defer()
-        if DBManager.getInstance().insertVideogame(name, platform, difficulty, min_players, max_players, length, copies):
+        if DBManager.getInstance().insertVideogame(name, Platform(platform), Difficulty(difficulty), min_players, max_players, length, copies):
             embed: Embed = Embed(title="Videogame inserted", description=f"Videogame {name} inserted successfully", color=Color.green())
         else:
             embed: Embed = Embed(title="Error inserting videogame", description=f"Error inserting videogame {name}, is it already present?", color=Color.red())
@@ -83,7 +83,7 @@ class GamesCog(Cog):
             embed: Embed = Embed(title="No boardgames found", description="No boardgames found with the specified filters", color=Color.red())
             await inter.edit_original_response(embed=embed)
             return
-        await self._sendQueryEmbed(inter, ObjectType.BOARDGAME, games, flags)
+        await self._sendQueryEmbed(inter, games, flags)
 
     @slash_command(name="vgsearch", description="Simple command to get the list of videogames with some filters")
     async def getVideogames(self, inter: ApplicationCommandInteraction, name: str = "", max_difficulty: str = "", player_count: int = 0, platform: str = "", flags: str = ""):
@@ -105,7 +105,7 @@ class GamesCog(Cog):
             embed: Embed = Embed(title="No videogames found", description="No videogames found with the specified filters", color=Color.red())
             await inter.edit_original_message(embed=embed)
             return
-        await self._sendQueryEmbed(inter, ObjectType.VIDEOGAME, games, flags)
+        await self._sendQueryEmbed(inter, games, flags)
 
     @slash_command(name="booksearch", description="Simple command to get the list of books with some filters")
     async def getBooks(self, inter: ApplicationCommandInteraction, name: str = "", author: str = "", genre: str = "", min_pages: int = 0, flags: str = ""):
@@ -126,7 +126,7 @@ class GamesCog(Cog):
             embed: Embed = Embed(title="No books found", description="No books found with the specified filters", color=Color.red())
             await inter.edit_original_message(embed=embed)
             return
-        await self._sendQueryEmbed(inter, ObjectType.BOOK, books, flags)
+        await self._sendQueryEmbed(inter, books, flags)
 
     @slash_command(name="interest", description="Declare interest in borrowing an item from Piazza")
     async def declareInterest(self, inter: ApplicationCommandInteraction, item: str):
@@ -174,6 +174,7 @@ class GamesCog(Cog):
     @slash_command(name="borrow", description="Borrow something from Piazza. Dates should be written in the format YYYY-MM-DD")
     async def borrow(self, inter: ApplicationCommandInteraction, item: str, planned_return: str = None, retrieval_date: str = None):
         await inter.response.defer()
+        itemID = None
         try:
             if retrieval_date:
                 retrieval_date = datetime.strptime(retrieval_date, "%Y-%m-%d")
