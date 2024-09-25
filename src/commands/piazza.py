@@ -39,7 +39,7 @@ class GamesCog(Cog):
 
     @slash_command(name="insertbg", description="Insert a new boardgame into the database", dm_permission=True)
     async def insertBoardgame(self, inter: ApplicationCommandInteraction, bgg_code: int, play_difficulty: str = "undefined", learn_difficulty: str = "undefined", copies: int = 1):
-        inter.response.defer()
+        await inter.response.defer()
         if DBManager.getInstance().insertBoardgame(bgg_code, Difficulty[play_difficulty.upper()], Difficulty[learn_difficulty.upper()], copies):
             embed: Embed = Embed(title="Boardgame inserted", description=f"Boardgame inserted successfully", color=Color.green())
         else:
