@@ -38,11 +38,12 @@ class GamesCog(Cog):
         await view.msg.edit(embed=embed, view=view)
 
     @slash_command(name="insertbg", description="Insert a new boardgame into the database", dm_permission=True)
-    async def insertBoardgame(self, inter: ApplicationCommandInteraction, bgg_code: int, name: str, min_players: int, max_players: int, length: int, play_difficulty: str = "undefined", learn_difficulty: str = "undefined", copies: int = 1):
+    async def insertBoardgame(self, inter: ApplicationCommandInteraction, bgg_code: int, play_difficulty: str = "undefined", learn_difficulty: str = "undefined", copies: int = 1):
+        inter.response.defer()
         if DBManager.getInstance().insertBoardgame(bgg_code, Difficulty(play_difficulty), Difficulty(learn_difficulty), copies):
-            embed: Embed = Embed(title="Boardgame inserted", description=f"Boardgame {name} inserted successfully", color=Color.green())
+            embed: Embed = Embed(title="Boardgame inserted", description=f"Boardgame inserted successfully", color=Color.green())
         else:
-            embed: Embed = Embed(title="Error inserting boardgame", description=f"Error inserting boardgame {name}, is it already present?", color=Color.red())
+            embed: Embed = Embed(title="Error inserting boardgame", description=f"Error inserting boardgame, is it already present?", color=Color.red())
         await inter.edit_original_response(embed=embed)
 
     @slash_command(name="insertvg", description="Insert a new videogame into the database", dm_permission=True)
