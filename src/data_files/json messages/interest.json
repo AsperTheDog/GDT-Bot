@@ -5,12 +5,12 @@
     {
       "id": 758502881,
       "name": "/interest <item>",
-      "value": "This command will add the game to the list of games you are interested in\n- The **item** argument can either be a name (Must be the full name, but it is case insensitive) or an itemID"
+      "value": "This command will add the game to the list of games you are interested in\n- The item argument can either be a name (Must be the full name, but it is case insensitive) or an itemID"
     },
     {
       "id": 998764720,
       "name": "/uninterest <item>",
-      "value": "This command will remove this game from the list of games you are interested in\n- The **item** argument can once again be either a full name (case insensitive) or an itemID"
+      "value": "This command will remove this game from the list of games you are interested in\n- The item argument can once again be either a full name (case insensitive) or an itemID"
     }
   ],
   "author": {

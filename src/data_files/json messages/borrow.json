@@ -5,22 +5,22 @@
     {
       "id": 848679671,
       "name": "/borrow <item> [planned_return] [retrieval_date]",
-      "value": "This command is to declare that you have borrowed an item.\n- The **item** argument can either be a name (Must be the full name, but it is case insensitive) or an itemID\n- The **planned_return** argument, if provided, must be a date in the format YYYY-MM-dd. This argument is for the bot when you plan to return this item, it will DM you a reminder the day before this date so you remember.\n- The **retrieval_date** argument must also be a date in the format YYYY-MM-dd and represents the date you borrowed the game. If you do not provide the game it will default to the current date at time of command execution, but the option is there in case you forgot to execute the command and borrowed the game some time ago."
+      "value": "This command is to declare that you have borrowed an item.\n- The item argument can either be a name (Must be the full name, but it is case insensitive) or an itemID\n- The planned_return argument, if provided, must be a date in the format YYYY-MM-dd. This argument is for the bot when you plan to return this item, it will DM you a reminder the day before this date so you remember.\n- The retrieval_date argument must also be a date in the format YYYY-MM-dd and represents the date you borrowed the game. If you do not provide the game it will default to the current date at time of command execution, but the option is there in case you forgot to execute the command and borrowed the game some time ago."
     },
     {
       "id": 739848037,
       "name": "/return <item>",
-      "value": "This command is to declare that you have returned a borrowed item\n- The **item** argument can once again be either a full name (case insensitive) or an itemID"
+      "value": "This command is to declare that you have returned a borrowed item\n- The item argument can once again be either a full name (case insensitive) or an itemID"
     },
     {
       "id": 499892317,
       "name": "/getborrows [user]",
-      "value": "This command will return a list with all the currently borrowed items\n- The **user** argument, when filled, will filter the list so only that user's borrowed items are shown"
+      "value": "This command will return a list with all the currently borrowed items\n- The user argument, when filled, will filter the list so only that user's borrowed items are shown"
     },
     {
       "id": 481148030,
       "name": "/getborrowhistory [user]",
-      "value": "This command will return a list with all the history of borrowed items\n- The **user** argument, when filled, will filter the list so only that user's borrow history is shown"
+      "value": "This command will return a list with all the history of borrowed items\n- The user argument, when filled, will filter the list so only that user's borrow history is shown"
     }
   ],
   "author": {
