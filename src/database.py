@@ -382,8 +382,8 @@ class DBManager:
         # Check dates are valid
         if planned_return is not None and planned_return < retrieval_date:
             return False, "Planned return date must be after retrieval date"
-        if retrieval_date < datetime.now():
-            return False, "Retrieval date must be in the future"
+        if retrieval_date > datetime.now():
+            return False, "Retrieval date must not be in the future"
 
         cursor.execute("INSERT INTO borrows (user, item, amount, planned_return, retrieval_date) VALUES (?, ?, ?, ?, ?)",
                        (user, item, 1, planned_return, retrieval_date))
