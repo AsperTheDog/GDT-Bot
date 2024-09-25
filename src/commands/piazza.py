@@ -153,7 +153,7 @@ class GamesCog(Cog):
             await userObj.send(embed=embed)
 
     @slash_command(name="uninterest", description="Cancel interest in borrowing an item from Piazza")
-    async def cancelInterest(self, inter: ApplicationCommandInteraction, user: Member, item: str):
+    async def cancelInterest(self, inter: ApplicationCommandInteraction, item: str):
         await inter.response.defer()
         itemID = DBManager.getInstance().getItemIDFromName(item)
         if itemID == -1:

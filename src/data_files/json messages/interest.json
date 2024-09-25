@@ -1,0 +1,24 @@
+{
+  "id": 600327740,
+  "description": "If you are planning on borrowing something but it is already being borrowed or you just can't get to Piazza yet, you can declare interest on an item. Declaring interest on an item will mean the bot will send you a DM any time it is borrowed or returned. Additionally, when you declare interest in an item, if someone has borrowed that item then they will also receive a DM to let them know someone would like it. This does not mean they have to return it right away! It is instead a simple reminder so they know someone else also would like to borrow it.\n\nFor clarification, when explaining the commands below, if an argument is in between \\<> means it is mandatory and when it is in [] it means it is optional\n",
+  "fields": [
+    {
+      "id": 758502881,
+      "name": "/interest <item>",
+      "value": "This command will add the game to the list of games you are interested in\n- The **item** argument can either be a name (Must be the full name, but it is case insensitive) or an itemID"
+    },
+    {
+      "id": 998764720,
+      "name": "/uninterest <item>",
+      "value": "This command will remove this game from the list of games you are interested in\n- The **item** argument can once again be either a full name (case insensitive) or an itemID"
+    }
+  ],
+  "author": {
+    "name": "BorrowBot"
+  },
+  "title": "How do I declare interest in a game?",
+  "footer": {
+    "text": "For any extra questions please contact @asperthedog"
+  },
+  "color": 19183
+}

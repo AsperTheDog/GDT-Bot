@@ -1,0 +1,24 @@
+{
+  "id": 933701353,
+  "description": "The bot keeps an internal database of all the different borrows happening and the amount of copies available of each item in Piazza. This way you can easily consult if an item is available or not! In order to keep everything updated, you have to make sure to tell the bot when you have borrowed and returned an item. The instructions for each command are below.\n\nFor clarification, when explaining the commands below, if an argument is in between \\<> means it is mandatory and when it is in [] it means it is optional\n",
+  "fields": [
+    {
+      "id": 848679671,
+      "name": "/borrow <item> [planned_return] [retrieval_date]",
+      "value": "This command is to declare that you have borrowed an item.\n- The **item** argument can either be a name (Must be the full name, but it is case insensitive) or an itemID\n- The **planned_return** argument, if provided, must be a date in the format YYYY-MM-dd. This argument is for the bot when you plan to return this item, it will DM you a reminder the day before this date so you remember.\n- The **retrieval_date** argument must also be a date in the format YYYY-MM-dd and represents the date you borrowed the game. If you do not provide the game it will default to the current date at time of command execution, but the option is there in case you forgot to execute the command and borrowed the game some time ago."
+    },
+    {
+      "id": 739848037,
+      "name": "/return <item>",
+      "value": "This command is to declare that you have returned a borrowed item\n- The **item** argument can once again be either a full name (case insensitive) or an itemID"
+    }
+  ],
+  "author": {
+    "name": "BorrowBot"
+  },
+  "title": "How do I borrow a game?",
+  "footer": {
+    "text": "For any extra questions please contact @asperthedog"
+  },
+  "color": 19183
+}
