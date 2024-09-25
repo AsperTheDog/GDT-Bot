@@ -19,4 +19,5 @@ class HelperMsgCog(Cog):
             await inter.edit_original_response(embed=embed)
             return
         embed = Embed.from_dict(data)
+        await inter.delete_original_message()
         await inter.channel.send(embed=embed)
