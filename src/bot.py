@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from disnake import ApplicationCommandInteraction, Embed, Color
 from disnake.ext.commands import InteractionBot, CommandSyncFlags, CommandError
 
-from database import DBManager
+from src.database import DBManager
 from src.commands.general import GeneralCog
 from src.commands.piazza import GamesCog
 from src.commands.boardgamegeek import BoardGamesCog
