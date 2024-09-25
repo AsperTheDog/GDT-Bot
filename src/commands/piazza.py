@@ -151,6 +151,8 @@ class GamesCog(Cog):
             if userObj.id == inter.user.id:
                 continue
             await userObj.send(embed=embed)
+        embed = Embed(title="Interest declared successfully", description="You will be notified when someone returns or borrows the game", color=Color.green())
+        await inter.edit_original_response(embed=embed)
 
     @slash_command(name="uninterest", description="Cancel interest in borrowing an item from Piazza")
     async def cancelInterest(self, inter: ApplicationCommandInteraction, item: str):
@@ -200,6 +202,7 @@ class GamesCog(Cog):
                 description = f"There are still {availableCopies} available copies of this game."
             dmEmbed = Embed(title=f"Someone borrowed the game {DBManager.getInstance().getItemNameFromID(itemID)}", description=description, color=Color.orange() if availableCopies == 0 else Color.yellow())
             for entry in data:
+                print(entry)
                 userObj = await inter.guild.fetch_member(entry['user'])
                 if userObj.id == inter.user.id:
                     DBManager.getInstance().cancelInterest(userObj.id, itemID)
@@ -224,7 +227,9 @@ class GamesCog(Cog):
         availableCopies = DBManager.getInstance().getItemAvailableCopies(itemID)
         description = f"There are {availableCopies} available copies of this game."
         dmEmbed = Embed(title=f"Someone returned the game {DBManager.getInstance().getItemNameFromID(itemID)}", description=description, color=Color.green())
+        print(data)
         for entry in data:
+            print(entry)
             userObj = await inter.guild.fetch_member(entry['user'])
             await userObj.send(embed=dmEmbed)
 

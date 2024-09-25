@@ -41,7 +41,7 @@ def dict_factory(cursor, row):
             d[col[0]] = ObjectType(d[col[0]] + "s")
         if col[0] in ["returned", "planned_return", "retrieval_date", "register_date", "declared_date"]:
             if d[col[0]] is not None:
-                d[col[0]] = datetime.strptime(d[col[0]], "%Y-%m-%d %H:%M:%S.%f")
+                d[col[0]] = datetime.strptime(d[col[0]], "%Y-%m-%d %H:%M:%S")
             else:
                 d[col[0]] = None
         if col[0] == "categories":
@@ -251,7 +251,7 @@ class DBManager:
     def getInterested(self, item: int):
         cursor = self.connection.cursor()
         cursor.execute("SELECT user, declared_date FROM interests WHERE item = ?", (item,))
-        return cursor.fetchall(),
+        return cursor.fetchall()
 
     def returnItem(self, user: int, item: int) -> (bool, str):
         cursor = self.connection.cursor()
