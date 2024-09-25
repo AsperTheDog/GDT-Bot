@@ -11,6 +11,16 @@
       "id": 739848037,
       "name": "/return <item>",
       "value": "This command is to declare that you have returned a borrowed item\n- The **item** argument can once again be either a full name (case insensitive) or an itemID"
+    },
+    {
+      "id": 499892317,
+      "name": "/getborrows [user]",
+      "value": "This command will return a list with all the currently borrowed items\n- The **user** argument, when filled, will filter the list so only that user's borrowed items are shown"
+    },
+    {
+      "id": 481148030,
+      "name": "/getborrowhistory [user]",
+      "value": "This command will return a list with all the history of borrowed items\n- The **user** argument, when filled, will filter the list so only that user's borrow history is shown"
     }
   ],
   "author": {
