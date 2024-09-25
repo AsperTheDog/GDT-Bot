@@ -13,7 +13,7 @@ class BoardGamesCog(Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @slash_command(name="fetchbgg", description="Fetch boardgame's information from BGG")
+    @slash_command(name="fetchbgg", description="Fetch boardgame's information from BGG", dm_permission=True)
     async def fetchBoardgame(self, inter: ApplicationCommandInteraction, query: str, flags: str = ""):
         await inter.response.defer()
 

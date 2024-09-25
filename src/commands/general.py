@@ -14,7 +14,7 @@ class GeneralCog(Cog):
         print("Shutting down...")
         await self.bot.close()
 
-    @slash_command(name="ping", description="Simple command to test the bot")
+    @slash_command(name="ping", description="Simple command to test the bot", dm_permission=True)
     async def ping(self, inter: ApplicationCommandInteraction):
         await inter.response.send_message("Pong!")
         print("Pong!")

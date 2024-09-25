@@ -41,7 +41,13 @@ def dict_factory(cursor, row):
             d[col[0]] = ObjectType(d[col[0]] + "s")
         if col[0] in ["returned", "planned_return", "retrieval_date", "register_date", "declared_date"]:
             if d[col[0]] is not None:
-                d[col[0]] = datetime.strptime(d[col[0]], "%Y-%m-%d %H:%M:%S")
+                try:
+                    d[col[0]] = datetime.strptime(d[col[0]], "%Y-%m-%d %H:%M:%S")
+                except ValueError:
+                    try:
+                        d[col[0]] = datetime.strptime(d[col[0]], "%Y-%m-%d %H:%M:%S.%f")
+                    except ValueError:
+                        d[col[0]] = datetime.strptime(d[col[0]], "%Y-%m-%d")
             else:
                 d[col[0]] = None
         if col[0] == "categories":
