@@ -8,7 +8,7 @@ class HelperMsgCog(Cog):
     def __init__(self, bot):
         self.bot: InteractionBot = bot
 
-    @slash_command(name="sendembed", description="Send a custom embed message", default_member_permissions=Permissions(administrator=True))
+    @slash_command(name="sendembed", description="Send a custom embed message")
     async def sendCustomEmbed(self, inter: ApplicationCommandInteraction, file: Attachment):
         await inter.response.defer()
         data = (await file.read()).decode('utf-8')

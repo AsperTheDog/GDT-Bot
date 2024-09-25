@@ -37,7 +37,7 @@ class GamesCog(Cog):
         view.msg = await inter.original_response()
         await view.msg.edit(embed=embed, view=view)
 
-    @slash_command(name="insertbg", description="Insert a new boardgame into the database", permissions=Permissions(administrator=True))
+    @slash_command(name="insertbg", description="Insert a new boardgame into the database")
     async def insertBoardgame(self, inter: ApplicationCommandInteraction, bgg_code: int, name: str, min_players: int, max_players: int, length: int, play_difficulty: str = "undefined", learn_difficulty: str = "undefined", copies: int = 1):
         if DBManager.getInstance().insertBoardgame(bgg_code, Difficulty(play_difficulty), Difficulty(learn_difficulty), copies):
             embed: Embed = Embed(title="Boardgame inserted", description=f"Boardgame {name} inserted successfully", color=Color.green())
@@ -45,7 +45,7 @@ class GamesCog(Cog):
             embed: Embed = Embed(title="Error inserting boardgame", description=f"Error inserting boardgame {name}, is it already present?", color=Color.red())
         await inter.edit_original_response(embed=embed)
 
-    @slash_command(name="insertvg", description="Insert a new videogame into the database", permissions=Permissions(administrator=True))
+    @slash_command(name="insertvg", description="Insert a new videogame into the database")
     async def insertVideogame(self, inter: ApplicationCommandInteraction, name: str, platform: str, min_players: int, max_players: int, length: int, difficulty: str = "undefined", copies: int = 1):
         await inter.response.defer()
         if DBManager.getInstance().insertVideogame(name, Platform(platform), Difficulty(difficulty), min_players, max_players, length, copies):
@@ -54,7 +54,7 @@ class GamesCog(Cog):
             embed: Embed = Embed(title="Error inserting videogame", description=f"Error inserting videogame {name}, is it already present?", color=Color.red())
         await inter.edit_original_response(embed=embed)
 
-    @slash_command(name="insertbook", description="Insert a new book into the database", permissions=Permissions(administrator=True))
+    @slash_command(name="insertbook", description="Insert a new book into the database")
     async def insertBook(self, inter: ApplicationCommandInteraction, name: str, author: str, pages: int, genre: str, abstract: str = "", copies: int = 1):
         await inter.response.defer()
         if DBManager.getInstance().insertBook(name, author, pages, genre, abstract, copies):
