@@ -1,4 +1,6 @@
-from disnake import ApplicationCommandInteraction, Permissions, Embed, Color
+import random
+
+from disnake import ApplicationCommandInteraction, Embed, Color
 from disnake.ext.commands import Cog, slash_command, InteractionBot
 
 from src.database import DBManager
@@ -30,3 +32,28 @@ class GeneralCog(Cog):
         else:
             embed = Embed(title="Query failed", description=f"Error: {result}", color=Color.red())
         await inter.edit_original_response(embed=embed)
+
+    @slash_command(name="killallhumans", description="K, time to ill all humans")
+    async def killallhumans(self, inter: ApplicationCommandInteraction):
+        def getRandomLine(content: [str], userid: int):
+            isValid = False
+            while not isValid:
+                picked = random.choice(content)
+                if picked.startswith("user:"):
+                    isValid = self.bot.userMapping[picked[5:].split("%")[0]] == userid
+                    picked = picked[5:].split("%")[1]
+                else:
+                    isValid = True
+            return picked
+
+        with open("data_files/other/killallhumans.txt", "r") as file:
+            content: [str] = file.read().split("\n")
+        line = getRandomLine(content, inter.author.id)
+        if line.startswith("%EMBED%"):
+            title, description, color = line[7:].split("%")
+            embed = Embed(title=title, description=description, color=Color(int(color, 16)))
+            await inter.response.send_message(embed=embed)
+        else:
+            await inter.response.send_message(line)
+
+

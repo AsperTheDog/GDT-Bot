@@ -30,6 +30,8 @@ class BotConfigData:
     testGuilds: [int]
     errorLogsChannel: int
 
+    users: dict = None
+
 
 def configure() -> BotConfigData | None:
     if not os.path.exists(configFileName):
@@ -44,7 +46,8 @@ def configure() -> BotConfigData | None:
             ownerIDs=data["security"]["ownerIDs"],
             syncCommandsDebug=data["debug"]["syncCommandsDebug"],
             testGuilds=data["debug"]["testGuilds"],
-            errorLogsChannel=data["debug"]["errorLogsChannel"]
+            errorLogsChannel=data["debug"]["errorLogsChannel"],
+            users=data["users"]
         )
 
 
@@ -89,6 +92,7 @@ def main():
     client.add_cog(BoardGamesCog(client))
     client.add_cog(HelperMsgCog(client))
     client.error_logs_channel = data.errorLogsChannel
+    client.userMapping = data.users
 
     client.run(data.token)
 

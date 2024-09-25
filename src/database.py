@@ -82,7 +82,7 @@ class DBManager:
             from src.bgg import fetchBGGameData
 
             print("Populating default data...")
-            with open("data_files/boardgames.csv", 'r') as data:
+            with open("data_files/other/boardgames.csv", 'r') as data:
                 csvData = csv.DictReader(data)
                 games = {}
                 customGames = []
@@ -100,14 +100,14 @@ class DBManager:
                 for query, values in queries:
                     cursor.execute(query, values)
 
-            with open("data_files/videogames.csv", 'r') as data:
+            with open("data_files/other/videogames.csv", 'r') as data:
                 csvData = csv.DictReader(data)
                 for entry in csvData:
                     queries = VideoGameObj.createFromDB(entry).getInsertQueries(self.getNextItemID())
                     for query, values in queries:
                         cursor.execute(query, values)
 
-            with open("data_files/books.csv", 'r') as data:
+            with open("data_files/other/books.csv", 'r') as data:
                 csvData = csv.DictReader(data)
                 for entry in csvData:
                     queries = BookObj.createFromDB(entry).getInsertQueries(self.getNextItemID())
