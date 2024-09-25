@@ -77,7 +77,6 @@ class GamesCog(Cog):
         if max_length > 0:
             filters.append(f"length<={max_length}")
         filterStr: str = ", ".join(filters)
-        print("Performing boardgame simple query...")
         games: [dict] = DBManager.getInstance().getFilteredList(ObjectType.BOARDGAME, "", filterStr)
         if len(games) == 0:
             embed: Embed = Embed(title="No boardgames found", description="No boardgames found with the specified filters", color=Color.red())
@@ -99,7 +98,6 @@ class GamesCog(Cog):
         if platform:
             filters.append(f"platform=={platform}")
         filterStr: str = ", ".join(filters)
-        print("Performing videogame simple query...")
         games: [dict] = DBManager.getInstance().getFilteredList(ObjectType.VIDEOGAME, "", filterStr)
         if len(games) == 0:
             embed: Embed = Embed(title="No videogames found", description="No videogames found with the specified filters", color=Color.red())
@@ -120,7 +118,6 @@ class GamesCog(Cog):
         if min_pages > 0:
             filters.append(f"pages>={min_pages}")
         filterStr: str = ", ".join(filters)
-        print("Performing book simple query...")
         books: [dict] = DBManager.getInstance().getFilteredList(ObjectType.BOOK, "", filterStr)
         if len(books) == 0:
             embed: Embed = Embed(title="No books found", description="No books found with the specified filters", color=Color.red())
@@ -202,7 +199,6 @@ class GamesCog(Cog):
                 description = f"There are still {availableCopies} available copies of this game."
             dmEmbed = Embed(title=f"Someone borrowed the game {DBManager.getInstance().getItemNameFromID(itemID)}", description=description, color=Color.orange() if availableCopies == 0 else Color.yellow())
             for entry in data:
-                print(entry)
                 userObj = await inter.guild.fetch_member(entry['user'])
                 if userObj.id == inter.user.id:
                     DBManager.getInstance().cancelInterest(userObj.id, itemID)
@@ -227,9 +223,7 @@ class GamesCog(Cog):
         availableCopies = DBManager.getInstance().getItemAvailableCopies(itemID)
         description = f"There are {availableCopies} available copies of this game."
         dmEmbed = Embed(title=f"Someone returned the game {DBManager.getInstance().getItemNameFromID(itemID)}", description=description, color=Color.green())
-        print(data)
         for entry in data:
-            print(entry)
             userObj = await inter.guild.fetch_member(entry['user'])
             await userObj.send(embed=dmEmbed)
 
