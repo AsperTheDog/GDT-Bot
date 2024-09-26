@@ -1,3 +1,4 @@
+import math
 from http.client import HTTPException
 
 import disnake
@@ -14,7 +15,7 @@ class BorrowPaginator(disnake.ui.View):
 
         self.embed_index = 0
         self.items = items
-        self.pages = len(items) // 9 + 1
+        self.pages = math.ceil(len(items) / 9.0)
         self.user = user
         self.embed: Embed = initialEmbed
         self.current = current
