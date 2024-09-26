@@ -51,13 +51,13 @@ def getBorrowsListEmbed(borrows: list[dict], user: Member, current: bool):
         retrieval_date = entry['retrieval_date'].strftime("%d/%m/%Y")
         itemType = entry['type'].value[:-1]
         if current and user:
-            content = f"**Retrieved at:** {retrieval_date}"
+            content = f"Retrieved at: {retrieval_date}"
         elif not current and user:
-            content = f"**Retrieved at:** {retrieval_date}\n**Returned at:** {returned}"
+            content = f"Retrieved at: {retrieval_date}\nReturned at: {returned}"
         elif current and not user:
-            content = f"**User:** {author}\n**Retrieved at:** {retrieval_date}"
+            content = f"User: {author}\nRetrieved at: {retrieval_date}"
         else:
-            content = f"**User:** {author}\n**Retrieved at:** {retrieval_date}\n**Returned at:** {returned}"
+            content = f"User: {author}\nRetrieved at: {retrieval_date}\nReturned at: {returned}"
         embed.add_field(name=f"{entry['name']} ({itemType})", value=content, inline=True)
 
     # Add empty fields to make the embed look better
