@@ -66,7 +66,7 @@ class GamesCog(Cog):
         await inter.edit_original_response(embed=embed)
 
     @slash_command(name="bgsearch", description="Simple command to get the list of boardgames with some filters", dm_permission=True)
-    async def getBoardgames(self, inter: ApplicationCommandInteraction, name: str = "", max_difficulty: str = "", player_count: int = 0, max_length: int = 0, flags: str = "", private: bool = False):
+    async def getBoardgames(self, inter: ApplicationCommandInteraction, name: str = "", max_difficulty: str = "", player_count: int = 0, max_length: int = 0, flags: str = "", private: bool = True):
         await inter.response.defer(ephemeral=private)
         filters: [str] = []
         if name:
@@ -87,7 +87,7 @@ class GamesCog(Cog):
         await self._sendQueryEmbed(inter, games, flags)
 
     @slash_command(name="vgsearch", description="Simple command to get the list of videogames with some filters", dm_permission=True)
-    async def getVideogames(self, inter: ApplicationCommandInteraction, name: str = "", max_difficulty: str = "", player_count: int = 0, platform: str = "", flags: str = "", private: bool = False):
+    async def getVideogames(self, inter: ApplicationCommandInteraction, name: str = "", max_difficulty: str = "", player_count: int = 0, platform: str = "", flags: str = "", private: bool = True):
         await inter.response.defer(ephemeral=private)
         filters: [str] = []
         if name:
@@ -108,7 +108,7 @@ class GamesCog(Cog):
         await self._sendQueryEmbed(inter, games, flags)
 
     @slash_command(name="booksearch", description="Simple command to get the list of books with some filters", dm_permission=True)
-    async def getBooks(self, inter: ApplicationCommandInteraction, name: str = "", author: str = "", genre: str = "", min_pages: int = 0, flags: str = "", private: bool = False):
+    async def getBooks(self, inter: ApplicationCommandInteraction, name: str = "", author: str = "", genre: str = "", min_pages: int = 0, flags: str = "", private: bool = True):
         await inter.response.defer(ephemeral=private)
         filters: [str] = []
         if name:
@@ -234,7 +234,7 @@ class GamesCog(Cog):
             await userObj.send(embed=dmEmbed)
 
     @slash_command(name="getborrows", description="Get the list of items borrowed from Piazza", dm_permission=True)
-    async def getBorrows(self, inter: ApplicationCommandInteraction, user: Member = None, private: bool = False):
+    async def getBorrows(self, inter: ApplicationCommandInteraction, user: Member = None, private: bool = True):
         await inter.response.defer(ephemeral=private)
         amount = DBManager.getInstance().getBorrowsAmount(user.id if user is not None else None, True)
         if amount == 0:
@@ -249,7 +249,7 @@ class GamesCog(Cog):
         await view.msg.edit(embed=embed, view=view)
 
     @slash_command(name="getborrowhistory", description="Get the history of borrowed items from Piazza", dm_permission=True)
-    async def getBorrowHistory(self, inter: ApplicationCommandInteraction, user: Member = None, private: bool = False):
+    async def getBorrowHistory(self, inter: ApplicationCommandInteraction, user: Member = None, private: bool = True):
         await inter.response.defer(ephemeral=private)
         amount = DBManager.getInstance().getBorrowsAmount(user.id if user is not None else None, False)
         if amount == 0:

@@ -30,17 +30,17 @@ class VideoGameObj:
         return VideoGameObj(
             id=safeGet(boardGameDict, "id", -1),
             title=safeGet(boardGameDict, "name", "<NO TITLE>"),
-            minPlayers=int(safeGet(boardGameDict, "min_players", -1)),
-            maxPlayers=int(safeGet(boardGameDict, "max_players", -1)),
-            playingTime=int(safeGet(boardGameDict, "length", -1)),
-            copies=int(safeGet(boardGameDict, "copies", 0)),
-            copies_available=int(safeGet(boardGameDict, "available_copies", -1)),
+            minPlayers=safeGet(boardGameDict, "min_players", -1),
+            maxPlayers=safeGet(boardGameDict, "max_players", -1),
+            playingTime=safeGet(boardGameDict, "length", -1),
+            copies=safeGet(boardGameDict, "copies", 0),
+            copies_available=safeGet(boardGameDict, "available_copies", -1),
             difficulty=safeGet(boardGameDict, "difficulty", Difficulty.UNDEFINED),
             platform=safeGet(boardGameDict, "platform", Platform.UNDEFINED),
             thumbnail=safeGet(boardGameDict, "thumbnail", "https://i.imgur.com/OJhoTqu.png"),
             description=safeGet(boardGameDict, "description", "No description available"),
             categories=safeGet(boardGameDict, "categories", []),
-            length=int(safeGet(boardGameDict, "length", 0))
+            length=safeGet(boardGameDict, "length", 0)
         )
 
     def getEmbed(self, flags: [str]) -> Embed:

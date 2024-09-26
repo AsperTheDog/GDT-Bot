@@ -14,7 +14,7 @@ class BoardGamesCog(Cog):
         self.bot = bot
 
     @slash_command(name="fetchbgg", description="Fetch boardgame's information from BGG", dm_permission=True)
-    async def fetchBoardgame(self, inter: ApplicationCommandInteraction, query: str, flags: str = "", private: bool = False):
+    async def fetchBoardgame(self, inter: ApplicationCommandInteraction, query: str, flags: str = "", private: bool = True):
         await inter.response.defer(ephemeral=private)
 
         ids = fetchBGGIDsFromName(query)
