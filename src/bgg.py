@@ -55,7 +55,7 @@ def fetchBGGameData(ids: [int], extraData: dict = None, updateCallback: Callable
         for item in items:
             if item["@type"] != "boardgame":
                 continue
-            game = BoardGameObj.createFromBGG(item, extraData[item["@id"]] if item["@id"] in extraData else None)
+            game = BoardGameObj.createFromBGG(item, extraData[int(item["@id"])] if int(item["@id"]) in extraData else None)
             games.append(game)
         if updateCallback:
             updateCallback(len(games))

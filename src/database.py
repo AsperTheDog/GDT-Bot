@@ -201,7 +201,7 @@ class DBManager:
         else:
             return BookObj.createFromDB(queryResult)
 
-    def getBorrowsList(self, pageRange: (int, int), user: int = None, item: int = None, current: bool = None):
+    def getBorrowsList(self, user: int = None, item: int = None, current: bool = None):
         cursor = self.connection.cursor()
         with open("data_files/queries/getMixedList.sql", 'r') as data:
             query = data.read()
@@ -216,29 +216,8 @@ class DBManager:
             finalFilter += ("WHERE" if finalFilter == "" else "AND") + f" item = ?"
         if current is not None:
             finalFilter += ("WHERE" if finalFilter == "" else "AND") + f" returned IS {"" if current else "NOT"} NULL"
-        finalFilter += f" LIMIT {pageRange[1] - pageRange[0]}" + (f" OFFSET {pageRange[0]}" if pageRange[0] > 0 else "")
         cursor.execute(query.format(finalFilter), args)
         return cursor.fetchall()
-
-    async def getBorrowsListEmbed(self, pageRange: (int, int), inter: ApplicationCommandInteraction, user: int = None, current: bool = True) -> Embed:
-        data = self.getBorrowsList(pageRange, user, None, current)
-        if user is not None:
-            user: Member = (await inter.guild.fetch_member(user))
-            titleAppend: str = " by " + (user.nick if user.nick is not None else user.name)
-        else:
-            titleAppend = ""
-        embed = Embed(title="Items borrowed" + titleAppend, color=Color.dark_gold())
-        if user is None:
-            embed.add_field(name="User", value="\n".join([(await inter.guild.fetch_member(entry['user'])).mention for entry in data]), inline=True)
-        embed.add_field(name="Item (type)", value="\n".join([str(entry['name']) + f" ({entry['type'].value[:-1]})" for entry in data]), inline=True)
-        if current:
-            embed.add_field(name="Copies left", value="\n".join([str(entry['available_copies']) for entry in data]), inline=True)
-
-        else:
-            embed.add_field(name="Returned", value="\n".join([entry['returned'].strftime("%d/%m/%Y") for entry in data]), inline=True)
-        if user:
-            embed.add_field(name="Borrowed date", value="\n".join([entry['retrieval_date'].strftime("%d/%m/%Y") for entry in data]), inline=True)
-        return embed
 
     def getBorrowsAmount(self, user: int, current: bool) -> int:
         cursor = self.connection.cursor()
@@ -278,9 +257,9 @@ class DBManager:
 
         return True, f"Item '{item_name}' returned successfully"
 
-    def setReminderSent(self, user: int) -> bool:
+    def setReminderSent(self, user: int, item: int) -> bool:
         cursor = self.connection.cursor()
-        cursor.execute("UPDATE users SET reminded = TRUE WHERE user = ?", (user,))
+        cursor.execute("UPDATE borrows SET reminded = TRUE WHERE user = ? and item = ?", (user, item))
         self.connection.commit()
         return True
 
@@ -296,15 +275,13 @@ class DBManager:
         queries = game[0].getInsertQueries(self.getNextItemID())
         for query, values in queries:
             cursor.execute(query, values)
+        self.connection.commit()
         return True
 
-    def deleteBoardgame(self, id: int) -> bool:
+    def deleteBoardgame(self, itemID: int) -> bool:
         cursor = self.connection.cursor()
-        try:
-            cursor.execute("DELETE FROM items WHERE id = ?", (id,))
-            self.connection.commit()
-        except SQLite.IntegrityError:
-            return False
+        cursor.execute("DELETE FROM items WHERE id = ?", (itemID,))
+        self.connection.commit()
         return True
 
     def insertVideogame(self, name: str, platform: Platform, difficulty: Difficulty, min_players: int, max_players: int, length: int, copies: int) -> bool:
@@ -321,14 +298,13 @@ class DBManager:
         queries = game.getInsertQueries(self.getNextItemID())
         for query, values in queries:
             cursor.execute(query, values)
+        self.connection.commit()
+        return True
 
-    def deleteVideogame(self, id: int) -> bool:
+    def deleteVideogame(self, itemID: int) -> bool:
         cursor = self.connection.cursor()
-        try:
-            cursor.execute("DELETE FROM items WHERE id = ?", (id,))
-            self.connection.commit()
-        except SQLite.IntegrityError:
-            return False
+        cursor.execute("DELETE FROM items WHERE id = ?", (itemID,))
+        self.connection.commit()
         return True
 
     def insertBook(self, name: str, author: str, pages: int, genre: str, abstract: str, copies: int) -> bool:
@@ -344,15 +320,13 @@ class DBManager:
         queries = book.getInsertQueries(self.getNextItemID())
         for query, values in queries:
             cursor.execute(query, values)
+        self.connection.commit()
         return True
 
-    def deleteBook(self, id: int) -> bool:
+    def deleteBook(self, itemID: int) -> bool:
         cursor = self.connection.cursor()
-        try:
-            cursor.execute("DELETE FROM items WHERE id = ?", (id,))
-            self.connection.commit()
-        except SQLite.IntegrityError:
-            return False
+        cursor.execute("DELETE FROM items WHERE id = ?", (itemID,))
+        self.connection.commit()
         return True
 
     def editCopies(self, itemID: int, copies: int) -> bool:

@@ -1,13 +1,13 @@
 from datetime import datetime, time
 
 import pytz
-from disnake import ApplicationCommandInteraction, Embed, Color, Permissions, Member
+from disnake import ApplicationCommandInteraction, Embed, Color, Member
 from disnake.ext.tasks import loop
 from disnake.ext.commands import Cog, slash_command
 
 from src.database import ObjectType, DBManager
 from src.embed_helpers.book import BookObj
-from src.embed_helpers.common import Difficulty, Platform
+from src.embed_helpers.common import Difficulty, Platform, getBorrowsListEmbed
 from src.utils.borrow_paginator import BorrowPaginator
 from src.utils.paginator import ItemPaginator
 
@@ -28,7 +28,7 @@ class GamesCog(Cog):
             else:
                 embed = Embed(title="Reminder", description=f"You are cheduled to return {borrow['item_name']} " + borrow['return_status'], color=Color.red())
             await user.send(embed=embed)
-            DBManager.getInstance().setReminderSent(borrow['user'])
+            DBManager.getInstance().setReminderSent(borrow['user'], borrow['item'])
         print("Reminders sent at " + datetime.now(tz=pytz.timezone('Europe/Stockholm')).strftime("%Y-%m-%d %H:%M:%S"))
 
     async def _sendQueryEmbed(self, inter: ApplicationCommandInteraction, items: list, flags: str):
@@ -38,7 +38,7 @@ class GamesCog(Cog):
         view.msg = await inter.original_response()
         await view.msg.edit(embed=embed, view=view)
 
-    @slash_command(name="insertbg", description="Insert a new boardgame into the database", dm_permission=True)
+    @slash_command(name="insertbg", description="Insert a new boardgame into the database")
     async def insertBoardgame(self, inter: ApplicationCommandInteraction, bgg_code: int, play_difficulty: str = "undefined", learn_difficulty: str = "undefined", copies: int = 1):
         await inter.response.defer()
         if DBManager.getInstance().insertBoardgame(bgg_code, Difficulty[play_difficulty.upper()], Difficulty[learn_difficulty.upper()], copies):
@@ -47,16 +47,16 @@ class GamesCog(Cog):
             embed: Embed = Embed(title="Error inserting boardgame", description=f"Error inserting boardgame, is it already present?", color=Color.red())
         await inter.edit_original_response(embed=embed)
 
-    @slash_command(name="insertvg", description="Insert a new videogame into the database", dm_permission=True)
+    @slash_command(name="insertvg", description="Insert a new videogame into the database")
     async def insertVideogame(self, inter: ApplicationCommandInteraction, name: str, platform: str, min_players: int, max_players: int, length: int, difficulty: str = "undefined", copies: int = 1):
         await inter.response.defer()
-        if DBManager.getInstance().insertVideogame(name, Platform(platform), Difficulty(difficulty), min_players, max_players, length, copies):
+        if DBManager.getInstance().insertVideogame(name, Platform[platform.upper()], Difficulty[difficulty.upper()], min_players, max_players, length, copies):
             embed: Embed = Embed(title="Videogame inserted", description=f"Videogame {name} inserted successfully", color=Color.green())
         else:
             embed: Embed = Embed(title="Error inserting videogame", description=f"Error inserting videogame {name}, is it already present?", color=Color.red())
         await inter.edit_original_response(embed=embed)
 
-    @slash_command(name="insertbook", description="Insert a new book into the database", dm_permission=True)
+    @slash_command(name="insertbook", description="Insert a new book into the database")
     async def insertBook(self, inter: ApplicationCommandInteraction, name: str, author: str, pages: int, genre: str, abstract: str = "", copies: int = 1):
         await inter.response.defer()
         if DBManager.getInstance().insertBook(name, author, pages, genre, abstract, copies):
@@ -65,7 +65,7 @@ class GamesCog(Cog):
             embed: Embed = Embed(title="Error inserting book", description=f"Error inserting book {name}, is it already present?", color=Color.red())
         await inter.edit_original_response(embed=embed)
 
-    @slash_command(name="bgsearch", description="Simple command to get the list of boardgames with some filters", dm_permission=True)
+    @slash_command(name="bgsearch", description="Simple command to get the list of boardgames with some filters")
     async def getBoardgames(self, inter: ApplicationCommandInteraction, name: str = "", max_difficulty: str = "", player_count: int = 0, max_length: int = 0, flags: str = "", private: bool = True):
         await inter.response.defer(ephemeral=private)
         filters: [str] = []
@@ -86,7 +86,7 @@ class GamesCog(Cog):
             return
         await self._sendQueryEmbed(inter, games, flags)
 
-    @slash_command(name="vgsearch", description="Simple command to get the list of videogames with some filters", dm_permission=True)
+    @slash_command(name="vgsearch", description="Simple command to get the list of videogames with some filters")
     async def getVideogames(self, inter: ApplicationCommandInteraction, name: str = "", max_difficulty: str = "", player_count: int = 0, platform: str = "", flags: str = "", private: bool = True):
         await inter.response.defer(ephemeral=private)
         filters: [str] = []
@@ -107,7 +107,7 @@ class GamesCog(Cog):
             return
         await self._sendQueryEmbed(inter, games, flags)
 
-    @slash_command(name="booksearch", description="Simple command to get the list of books with some filters", dm_permission=True)
+    @slash_command(name="booksearch", description="Simple command to get the list of books with some filters")
     async def getBooks(self, inter: ApplicationCommandInteraction, name: str = "", author: str = "", genre: str = "", min_pages: int = 0, flags: str = "", private: bool = True):
         await inter.response.defer(ephemeral=private)
         filters: [str] = []
@@ -127,7 +127,7 @@ class GamesCog(Cog):
             return
         await self._sendQueryEmbed(inter, books, flags)
 
-    @slash_command(name="interest", description="Declare interest in borrowing an item from Piazza", dm_permission=True)
+    @slash_command(name="interest", description="Declare interest in borrowing an item from Piazza")
     async def declareInterest(self, inter: ApplicationCommandInteraction, item: str):
         await inter.response.defer()
         itemID = DBManager.getInstance().getItemIDFromName(item)
@@ -135,7 +135,7 @@ class GamesCog(Cog):
             embed = Embed(title="Error declaring interest", description="Item not found", color=Color.red())
             await inter.edit_original_response(embed=embed)
             return
-        data = DBManager.getInstance().getBorrowsList((0, 0), inter.user.id, itemID, True)
+        data = DBManager.getInstance().getBorrowsList(inter.user.id, itemID, True)
         success = DBManager.getInstance().declareInterest(inter.user.id, itemID)
         if not success:
             embed = Embed(title="Error declaring interest", description="You have already declared interest for this item", color=Color.red())
@@ -153,7 +153,7 @@ class GamesCog(Cog):
         embed = Embed(title="Interest declared successfully", description="You will be notified when someone returns or borrows the game", color=Color.green())
         await inter.edit_original_response(embed=embed)
 
-    @slash_command(name="uninterest", description="Cancel interest in borrowing an item from Piazza", dm_permission=True)
+    @slash_command(name="uninterest", description="Cancel interest in borrowing an item from Piazza")
     async def cancelInterest(self, inter: ApplicationCommandInteraction, item: str):
         await inter.response.defer()
         itemID = DBManager.getInstance().getItemIDFromName(item)
@@ -172,7 +172,7 @@ class GamesCog(Cog):
             color=Color.orange())
         await inter.edit_original_response(embed=embed)
 
-    @slash_command(name="borrow", description="Borrow something from Piazza. Dates should be written in the format YYYY-MM-DD", dm_permission=True)
+    @slash_command(name="borrow", description="Borrow something from Piazza. Dates should be written in the format YYYY-MM-DD")
     async def borrow(self, inter: ApplicationCommandInteraction, item: str, planned_return: str = None, retrieval_date: str = None):
         await inter.response.defer()
         itemID = None
@@ -214,7 +214,7 @@ class GamesCog(Cog):
             embed: Embed = Embed(title="Error borrowing item", description=message, color=Color.red())
         await inter.edit_original_response(embed=embed)
 
-    @slash_command(name="return", description="Return something you borrowed to Piazza", dm_permission=True)
+    @slash_command(name="return", description="Return something you borrowed to Piazza")
     async def returnItem(self, inter: ApplicationCommandInteraction, item: str):
         await inter.response.defer()
         itemID = DBManager.getInstance().getItemIDFromName(item)
@@ -233,32 +233,29 @@ class GamesCog(Cog):
             userObj = await inter.guild.fetch_member(entry['user'])
             await userObj.send(embed=dmEmbed)
 
-    @slash_command(name="getborrows", description="Get the list of items borrowed from Piazza", dm_permission=True)
-    async def getBorrows(self, inter: ApplicationCommandInteraction, user: Member = None, private: bool = True):
+    @staticmethod
+    async def execBorrowCommand(inter: ApplicationCommandInteraction, current: bool, user: Member = None, private: bool = True):
         await inter.response.defer(ephemeral=private)
-        amount = DBManager.getInstance().getBorrowsAmount(user.id if user is not None else None, True)
+        amount = DBManager.getInstance().getBorrowsAmount(user.id if user is not None else None, current)
         if amount == 0:
             titleAppend = (" by " + (user.nick if user.nick is not None else user.name)) if user is not None else ""
             embed: Embed = Embed(title="Items borrowed" + titleAppend, description="No items have been borrowed from Piazza" + titleAppend, color=Color.red())
             await inter.edit_original_response(embed=embed)
             return
-        embed = await DBManager.getInstance().getBorrowsListEmbed((0, 10), inter, user.id if user is not None else None, True)
-        view = BorrowPaginator(amount // 10 + 1, embed, DBManager.getInstance(), user.id if user is not None else None, True)
+        items = DBManager.getInstance().getBorrowsList(user.id if user is not None else None, None, current)
+        for item in items:
+            item['user'] = (await inter.guild.fetch_member(item['user'])).mention
+        embed = getBorrowsListEmbed(items[:9], user, current)
+        view = BorrowPaginator(items, embed, user.id if user is not None else None, current)
         view.msg = await inter.original_response()
         embed.set_footer(text="Use arrows to move between pages")
         await view.msg.edit(embed=embed, view=view)
 
-    @slash_command(name="getborrowhistory", description="Get the history of borrowed items from Piazza", dm_permission=True)
+    @slash_command(name="getborrows", description="Get the list of items borrowed from Piazza")
+    async def getBorrows(self, inter: ApplicationCommandInteraction, user: Member = None, private: bool = True):
+        await GamesCog.execBorrowCommand(inter, True, user, private)
+
+    @slash_command(name="getborrowhistory", description="Get the history of borrowed items from Piazza")
     async def getBorrowHistory(self, inter: ApplicationCommandInteraction, user: Member = None, private: bool = True):
-        await inter.response.defer(ephemeral=private)
-        amount = DBManager.getInstance().getBorrowsAmount(user.id if user is not None else None, False)
-        if amount == 0:
-            titleAppend = (" by " + (user.nick if user.nick is not None else user.name)) if user is not None else ""
-            embed: Embed = Embed(title="Borrow history" + titleAppend, description="No items have been borrowed from Piazza" + titleAppend, color=Color.red())
-            await inter.edit_original_response(embed=embed)
-            return
-        embed = await DBManager.getInstance().getBorrowsListEmbed((0, 10), inter, user.id if user is not None else None, False)
-        view = BorrowPaginator(amount // 10 + 1, embed, DBManager.getInstance(), user.id if user is not None else None, False)
-        view.msg = await inter.original_response()
-        embed.set_footer(text="Use arrows to move between pages")
-        await view.msg.edit(embed=embed, view=view)
+        await GamesCog.execBorrowCommand(inter, False, user, private)
+

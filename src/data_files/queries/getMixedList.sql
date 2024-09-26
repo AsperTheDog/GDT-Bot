@@ -4,6 +4,7 @@ SELECT
     i.id,
     i.type,
     i.copies - b.amount AS available_copies,
+    b.amount,
     b.returned,
     b.retrieval_date
 FROM
