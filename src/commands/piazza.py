@@ -6,6 +6,7 @@ from disnake.ext.tasks import loop
 from disnake.ext.commands import Cog, slash_command
 
 from src.database import ObjectType, DBManager
+from src.embed_helpers.book import BookObj
 from src.embed_helpers.common import Difficulty, Platform
 from src.utils.borrow_paginator import BorrowPaginator
 from src.utils.paginator import ItemPaginator
@@ -119,7 +120,7 @@ class GamesCog(Cog):
         if min_pages > 0:
             filters.append(f"pages>={min_pages}")
         filterStr: str = ", ".join(filters)
-        books: [dict] = DBManager.getInstance().getFilteredList(ObjectType.BOOK, "", filterStr)
+        books: [BookObj] = DBManager.getInstance().getFilteredList(ObjectType.BOOK, "", filterStr)
         if len(books) == 0:
             embed: Embed = Embed(title="No books found", description="No books found with the specified filters", color=Color.red())
             await inter.edit_original_message(embed=embed)

@@ -23,9 +23,9 @@ class BookObj:
             id=safeGet(bookDict, "id", -1),
             title=safeGet(bookDict, "name", "<NO TITLE>"),
             author=safeGet(bookDict, "author", "<NO AUTHOR>"),
-            pages=int(safeGet(bookDict, "length", -1)),
-            copies=int(safeGet(bookDict, "copies", -1)),
-            copies_available=int(safeGet(bookDict, "available_copies", -1)),
+            pages=safeGet(bookDict, "length", -1),
+            copies=safeGet(bookDict, "copies", -1),
+            copies_available=safeGet(bookDict, "available_copies", -1),
             thumbnail=safeGet(bookDict, "thumbnail", "https://i.imgur.com/OJhoTqu.png"),
             description=safeGet(bookDict, "description", "No description available"),
             categories=safeGet(bookDict, "categories", [])
@@ -54,6 +54,10 @@ class BookObj:
 
         embed.add_field(name="Author", value=f"{self.author}", inline=True)
         embed.add_field(name="Pages", value=f"{self.pages}", inline=True)
+        if self.copies != -1:
+            embed.add_field(name="Copies", value=f"{self.copies}", inline=True)
+        if self.copies_available != -1:
+            embed.add_field(name="Available Copies", value=f"{self.copies_available}", inline=True)
         return embed
 
     def getInsertQueries(self, nextID: int) -> [(str, list)]:

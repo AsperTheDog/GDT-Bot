@@ -75,6 +75,10 @@ class VideoGameObj:
             embed.add_field(name="Difficulty", value=f"{self.difficulty.name.lower()}", inline=True)
 
         embed.add_field(name="Platform", value=f"{self.platform.name.lower()}", inline=True)
+        if self.copies != -1:
+            embed.add_field(name="Copies", value=f"{self.copies}", inline=True)
+        if self.copies_available != -1:
+            embed.add_field(name="Available Copies", value=f"{self.copies_available}", inline=True)
         return embed
 
     def getInsertQueries(self, nextID: int) -> [(str, list)]:
