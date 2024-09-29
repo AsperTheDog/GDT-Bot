@@ -116,6 +116,20 @@ class DBManager:
 
         self.connection.commit()
 
+    def searchIDsFromName(self, name: str) -> [int]:
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT id FROM items WHERE LOWER(name) LIKE LOWER(?)", ("%" + name + "%",))
+        data = cursor.fetchall()
+        if len(data) == 0:
+            try:
+                itemID = int(name)
+            except ValueError:
+                return []
+            else:
+                cursor.execute("SELECT EXISTS(SELECT 1 FROM items WHERE id = ?) AS item_exists", (itemID,))
+                return [itemID] if cursor.fetchone()['item_exists'] else []
+        return [item['id'] for item in data]
+
     def getItemIDFromName(self, name: str) -> int:
         cursor = self.connection.cursor()
         cursor.execute("SELECT id FROM items WHERE LOWER(name) = LOWER(?)", (name,))
@@ -129,6 +143,18 @@ class DBManager:
                 cursor.execute("SELECT EXISTS(SELECT 1 FROM items WHERE id = ?) AS item_exists", (itemID,))
                 return itemID if cursor.fetchone()['item_exists'] else -1
         return data['id'] if data is not None else -1
+
+    def getItemsToBorrowFromName(self, user: int, name: str):
+        cursor = self.connection.cursor()
+        with open("data_files/queries/getItemsToBorrow.sql", 'r') as data:
+            cursor.execute(data.read(), (name, user))
+        return [item['id'] for item in cursor.fetchall()]
+
+    def getItemsToReturnFromName(self, user: int, name: str):
+        cursor = self.connection.cursor()
+        with open("data_files/queries/getItemsToReturn.sql", 'r') as data:
+            cursor.execute(data.read(), (user, name))
+        return [item['id'] for item in cursor.fetchall()]
 
     def getItemNameFromID(self, id: int) -> str:
         cursor = self.connection.cursor()

@@ -31,13 +31,6 @@ class GamesCog(Cog):
             DBManager.getInstance().setReminderSent(borrow['user'], borrow['item'])
         print("Reminders sent at " + datetime.now(tz=pytz.timezone('Europe/Stockholm')).strftime("%Y-%m-%d %H:%M:%S"))
 
-    async def _sendQueryEmbed(self, inter: ApplicationCommandInteraction, items: list, flags: str):
-        embed = items[0].getEmbed([flag.strip() for flag in flags.split(",")])
-        view = ItemPaginator(items, flags, embed)
-        embed.set_footer(text="Use arrows to move between pages")
-        view.msg = await inter.original_response()
-        await view.msg.edit(embed=embed, view=view)
-
     @slash_command(name="insertbg", description="Insert a new boardgame into the database")
     async def insertBoardgame(self, inter: ApplicationCommandInteraction, bgg_code: int, play_difficulty: str = "undefined", learn_difficulty: str = "undefined", copies: int = 1):
         await inter.response.defer()
@@ -185,11 +178,16 @@ class GamesCog(Cog):
             success = False
             message = "Error parsing dates, please use the format YYYY-MM-DD"
         else:
-            itemID = DBManager.getInstance().getItemIDFromName(item)
-            if itemID == -1:
+            itemIDs = DBManager.getInstance().getItemsToBorrowFromName(inter.user.id, item)
+            if len(itemIDs) == 0:
                 success = False
                 message = "Item not found"
+            elif len(itemIDs) > 1:
+                success = False
+                gameNames = [DBManager.getInstance().getItemNameFromID(entry) for entry in itemIDs]
+                message = "**Multiple items found:**\n" + "\n".join(gameNames) + "\n**Please be more specific.**"
             else:
+                itemID = itemIDs[0]
                 success, message = DBManager.getInstance().borrowItem(inter.user.id, itemID, planned_return, retrieval_date)
         if success:
             data = DBManager.getInstance().getInterested(itemID)
@@ -217,8 +215,19 @@ class GamesCog(Cog):
     @slash_command(name="return", description="Return something you borrowed to Piazza")
     async def returnItem(self, inter: ApplicationCommandInteraction, item: str):
         await inter.response.defer()
-        itemID = DBManager.getInstance().getItemIDFromName(item)
-        success, message = DBManager.getInstance().returnItem(inter.user.id, itemID)
+        itemIDs = DBManager.getInstance().getItemsToReturnFromName(inter.user.id, item)
+        if len(itemIDs) == 0:
+            embed = Embed(title="Error returning item", description="Item not found", color=Color.red())
+            await inter.edit_original_response(embed=embed)
+            return
+        elif len(itemIDs) > 1:
+            gameNames = [DBManager.getInstance().getItemNameFromID(entry) for entry in itemIDs]
+            embed = Embed(title="Error returning item", description="Multiple items found, please be more specific. Entries found:\n" + "\n".join(gameNames), color=Color.red())
+            await inter.edit_original_response(embed=embed)
+            return
+        else:
+            itemID = itemIDs[0]
+            success, message = DBManager.getInstance().returnItem(inter.user.id, itemID)
         if not success:
             embed = Embed(title="Error returning item", description=message, color=Color.red())
             await inter.edit_original_response(embed=embed)
@@ -234,7 +243,7 @@ class GamesCog(Cog):
             await userObj.send(embed=dmEmbed)
 
     @staticmethod
-    async def execBorrowCommand(inter: ApplicationCommandInteraction, current: bool, user: Member = None, private: bool = True):
+    async def execGetBorrowsCommand(inter: ApplicationCommandInteraction, current: bool, user: Member = None, private: bool = True):
         await inter.response.defer(ephemeral=private)
         amount = DBManager.getInstance().getBorrowsAmount(user.id if user is not None else None, current)
         if amount == 0:
@@ -253,9 +262,17 @@ class GamesCog(Cog):
 
     @slash_command(name="getborrows", description="Get the list of items borrowed from Piazza")
     async def getBorrows(self, inter: ApplicationCommandInteraction, user: Member = None, private: bool = True):
-        await GamesCog.execBorrowCommand(inter, True, user, private)
+        await GamesCog.execGetBorrowsCommand(inter, True, user, private)
 
     @slash_command(name="getborrowhistory", description="Get the history of borrowed items from Piazza")
     async def getBorrowHistory(self, inter: ApplicationCommandInteraction, user: Member = None, private: bool = True):
-        await GamesCog.execBorrowCommand(inter, False, user, private)
+        await GamesCog.execGetBorrowsCommand(inter, False, user, private)
+
+    @staticmethod
+    async def _sendQueryEmbed(inter: ApplicationCommandInteraction, items: list, flags: str):
+        embed = items[0].getEmbed([flag.strip() for flag in flags.split(",")])
+        view = ItemPaginator(items, flags, embed)
+        embed.set_footer(text="Use arrows to move between pages")
+        view.msg = await inter.original_response()
+        await view.msg.edit(embed=embed, view=view)
 

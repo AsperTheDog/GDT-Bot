@@ -1,6 +1,6 @@
 from enum import Enum
 
-from disnake import Member, Embed, ApplicationCommandInteraction, Color
+from disnake import Member, Embed, Color
 
 
 class Difficulty(Enum):
