@@ -184,8 +184,8 @@ class GamesCog(Cog):
                 message = "Item not found"
             elif len(itemIDs) > 1:
                 success = False
-                gameNames = [DBManager.getInstance().getItemNameFromID(entry) for entry in itemIDs]
-                message = "**Multiple items found:**\n" + "\n".join(gameNames) + "\n**Please be more specific.**"
+                gameNames = ["- " + DBManager.getInstance().getItemNameFromID(entry) for entry in itemIDs]
+                message = "**Multiple items found:**\n" + "\n".join(gameNames) + "\n\n**Please be more specific.**"
             else:
                 itemID = itemIDs[0]
                 success, message = DBManager.getInstance().borrowItem(inter.user.id, itemID, planned_return, retrieval_date)
@@ -221,8 +221,8 @@ class GamesCog(Cog):
             await inter.edit_original_response(embed=embed)
             return
         elif len(itemIDs) > 1:
-            gameNames = [DBManager.getInstance().getItemNameFromID(entry) for entry in itemIDs]
-            embed = Embed(title="Error returning item", description="Multiple items found, please be more specific. Entries found:\n" + "\n".join(gameNames), color=Color.red())
+            gameNames = ["- " + DBManager.getInstance().getItemNameFromID(entry) for entry in itemIDs]
+            embed = Embed(title="Error returning item", description="**Multiple items found:**\n" + "\n".join(gameNames) + "\n\n**Please be more specific.**", color=Color.red())
             await inter.edit_original_response(embed=embed)
             return
         else:
