@@ -147,13 +147,25 @@ class DBManager:
     def getItemsToBorrowFromName(self, user: int, name: str):
         cursor = self.connection.cursor()
         with open("data_files/queries/getItemsToBorrow.sql", 'r') as data:
-            cursor.execute(data.read(), (name, user))
+            cursor.execute(data.read().format("LOWER(i.name) = LOWER(?)"), (name, user))
+            res = cursor.fetchall()
+            if len(res) == 0:
+                data.seek(0)
+                cursor.execute(data.read().format("LOWER(i.name) LIKE LOWER('%' || ? || '%')"), (name, user))
+            else:
+                return [res[0]['id']]
         return [item['id'] for item in cursor.fetchall()]
 
     def getItemsToReturnFromName(self, user: int, name: str):
         cursor = self.connection.cursor()
         with open("data_files/queries/getItemsToReturn.sql", 'r') as data:
-            cursor.execute(data.read(), (user, name))
+            cursor.execute(data.read().format("LOWER(i.name) = LOWER(?)"), (name, user))
+            res = cursor.fetchall()
+            if len(res) == 0:
+                data.seek(0)
+                cursor.execute(data.read().format("LOWER(i.name) LIKE LOWER('%' || ? || '%')"), (name, user))
+            else:
+                return [res[0]['id']]
         return [item['id'] for item in cursor.fetchall()]
 
     def getItemNameFromID(self, id: int) -> str:

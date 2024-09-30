@@ -166,7 +166,7 @@ class GamesCog(Cog):
         await inter.edit_original_response(embed=embed)
 
     @slash_command(name="borrow", description="Borrow something from Piazza. Dates should be written in the format YYYY-MM-DD")
-    async def borrow(self, inter: ApplicationCommandInteraction, item: str, planned_return: str = None, retrieval_date: str = None):
+    async def borrowItem(self, inter: ApplicationCommandInteraction, item: str, planned_return: str = None, retrieval_date: str = None):
         await inter.response.defer()
         itemID = None
         try:

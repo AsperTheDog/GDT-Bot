@@ -6,7 +6,7 @@ LEFT JOIN (
     WHERE returned IS NULL
     GROUP BY item
 ) b ON i.id = b.item
-WHERE i.name LIKE '%' || ? || '%'
+WHERE {}
 AND (i.copies > IFNULL(b.borrowed_amount, 0))
 AND i.id NOT IN (
     SELECT item
