@@ -449,8 +449,7 @@ class DBManager:
         op = filterToken['operation']
         if filterToken['key'] == "name":
             value = '%' + filterToken['value'] + '%'
-            op = "LIKE"
-            return f"LOWER({filterToken['key']}) {op} LOWER(?)", value
+            return f"LOWER({filterToken['key']}) LIKE LOWER(?)", value
         return f"{filterToken['key']} {op} ?", value
 
     @staticmethod

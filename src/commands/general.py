@@ -1,6 +1,6 @@
 import random
 
-from disnake import ApplicationCommandInteraction, Embed, Color
+from disnake import ApplicationCommandInteraction, Embed, Color, File
 from disnake.ext.commands import Cog, slash_command, InteractionBot
 
 from src.database import DBManager
@@ -56,4 +56,7 @@ class GeneralCog(Cog):
         else:
             await inter.response.send_message(line)
 
-
+    @slash_command(name="getdb", description="Get the database")
+    async def getdb(self, inter: ApplicationCommandInteraction):
+        with open("data_files/database.sqlite", "rb") as file:
+            await inter.response.send_message(file=File(file, filename="database.sqlite"))
