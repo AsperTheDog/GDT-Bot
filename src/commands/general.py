@@ -1,6 +1,6 @@
 import random
 
-from disnake import ApplicationCommandInteraction, Embed, Color, File
+from disnake import ApplicationCommandInteraction, Embed, Color, File, Attachment
 from disnake.ext.commands import Cog, slash_command, InteractionBot
 
 from src.database import DBManager
@@ -32,6 +32,20 @@ class GeneralCog(Cog):
         else:
             embed = Embed(title="Query failed", description=f"Error: {result}", color=Color.red())
         await inter.edit_original_response(embed=embed)
+
+    @slash_command(name="executequeryfile", description="Execute a custom query on the database")
+    async def executequeryfile(self, inter: ApplicationCommandInteraction, file: Attachment):
+        await inter.response.defer()
+        data = (await file.read()).decode('utf-8')
+        success, result = DBManager.getInstance().execute(data)
+        if len(result) > 4085:
+            result = result[:4082] + "..."
+        if success:
+            embed = Embed(title="Query executed successfully", description=f"Result: {result}", color=Color.green())
+        else:
+            embed = Embed(title="Query failed", description=f"Error: {result}", color=Color.red())
+        await inter.edit_original_response(embed=embed)
+
 
     @slash_command(name="killallhumans", description="K, time to ill all humans")
     async def killallhumans(self, inter: ApplicationCommandInteraction):
