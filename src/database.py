@@ -265,6 +265,12 @@ class DBManager:
             cursor.execute(f"SELECT COUNT(*) AS amount FROM borrows WHERE user = ? AND returned IS {"" if current else "NOT"} NULL", (user,))
         return cursor.fetchone()['amount']
 
+    def getBorrowStats(self, order: str):
+        cursor = self.connection.cursor()
+        with open("data_files/queries/getBorrowStats.sql", 'r') as data:
+            cursor.execute(data.read(), (order,))
+        return cursor.fetchall()
+
     def getReminders(self) -> [dict]:
         cursor = self.connection.cursor()
         with open("data_files/queries/getReminders.sql", 'r') as data:

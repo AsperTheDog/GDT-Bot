@@ -12,6 +12,24 @@ from src.utils.borrow_paginator import BorrowPaginator
 from src.utils.paginator import ItemPaginator
 
 
+def format_time(minutes):
+    days = int(minutes // 1440)  # 1440 minutes in a day
+    hours = int((minutes % 1440) // 60)  # 60 minutes in an hour
+    mins = int(minutes % 60)  # remaining minutes
+    seconds = int((minutes - int(minutes)) * 60)  # remaining seconds from fractional minutes
+
+    time_parts = []
+    if days > 0:
+        time_parts.append(f"{days}d")
+    if hours > 0:
+        time_parts.append(f"{hours}h")
+    if mins > 0:
+        time_parts.append(f"{mins}m")
+    if seconds > 0:
+        time_parts.append(f"{seconds}s")
+
+    return ' '.join(time_parts) if time_parts else '0m'
+
 class GamesCog(Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -275,6 +293,36 @@ class GamesCog(Cog):
     @slash_command(name="getborrowhistory", description="Get the history of borrowed items from Piazza")
     async def getBorrowHistory(self, inter: ApplicationCommandInteraction, user: Member = None, private: bool = True):
         await GamesCog.execGetBorrowsCommand(inter, False, user, private)
+
+    @slash_command(name="getborrowstats", description="Get the borrow highscores!")
+    async def getBorrowStats(self, inter: ApplicationCommandInteraction, order: str = "amount", private: bool = True):
+        await inter.response.defer(ephemeral=private)
+        if order not in ["time", "amount", "count", "current"]:
+            order = "total"
+        elif order == "amount" or order == "count":
+            order = "total"
+        data = DBManager.getInstance().getBorrowStats(order)
+        if len(data) == 0:
+            embed = Embed(title="No borrow stats retrieved", description="Either this is a very weird error or no one has borrowed anything yet", color=Color.red())
+            await inter.edit_original_response(embed=embed)
+            return
+        formatted = order + " borrows"
+        if order == "time":
+            formatted = "borrow time"
+        embed = Embed(title=f"Borrow stats by {formatted}", color=Color.blue())
+        count = 0
+        for entry in data:
+            user = await inter.guild.fetch_member(entry['user'])
+            if count == 0:
+                displayName = user.display_name + "🥇"
+            elif count == 1:
+                displayName = user.display_name + "🥈"
+            elif count == 2:
+                displayName = user.display_name + "🥉"
+            else:
+                displayName = user.display_name
+            embed.add_field(name=displayName, value=f"Total borrows: {entry['total']}\nCurrent borrows: {entry['current']}\nTotal borrow time: {format_time(entry['time'])}", inline=False)
+        await inter.edit_original_response(embed=embed)
 
     @staticmethod
     async def _sendQueryEmbed(inter: ApplicationCommandInteraction, items: list, flags: str):
