@@ -268,7 +268,7 @@ class DBManager:
     def getBorrowStats(self, order: str):
         cursor = self.connection.cursor()
         with open("data_files/queries/getBorrowStats.sql", 'r') as data:
-            cursor.execute(data.read(), (order,))
+            cursor.execute(data.read().format(order))
         return cursor.fetchall()
 
     def getReminders(self) -> [dict]:
