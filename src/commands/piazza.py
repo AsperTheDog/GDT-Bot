@@ -1,4 +1,5 @@
 from datetime import datetime, time
+from functools import partial
 
 import pytz
 from disnake import ApplicationCommandInteraction, Embed, Color, Member
@@ -7,28 +8,10 @@ from disnake.ext.commands import Cog, slash_command
 
 from src.database import ObjectType, DBManager
 from src.embed_helpers.book import BookObj
-from src.embed_helpers.common import Difficulty, Platform, getBorrowsListEmbed
+from src.embed_helpers.common import Difficulty, Platform, getBorrowsListEmbed, getBorrowsStatsEmbed
 from src.utils.borrow_paginator import BorrowPaginator
 from src.utils.paginator import ItemPaginator
 
-
-def format_time(minutes):
-    days = int(minutes // 1440)  # 1440 minutes in a day
-    hours = int((minutes % 1440) // 60)  # 60 minutes in an hour
-    mins = int(minutes % 60)  # remaining minutes
-    seconds = int((minutes - int(minutes)) * 60)  # remaining seconds from fractional minutes
-
-    time_parts = []
-    if days > 0:
-        time_parts.append(f"{days}d")
-    if hours > 0:
-        time_parts.append(f"{hours}h")
-    if mins > 0:
-        time_parts.append(f"{mins}m")
-    if seconds > 0:
-        time_parts.append(f"{seconds}s")
-
-    return ' '.join(time_parts) if time_parts else '0m'
 
 class GamesCog(Cog):
     def __init__(self, bot):
@@ -281,7 +264,7 @@ class GamesCog(Cog):
         for item in items:
             item['user'] = (await inter.guild.fetch_member(item['user'])).mention
         embed = getBorrowsListEmbed(items[:9], user, current)
-        view = BorrowPaginator(items, embed, user.id if user is not None else None, current)
+        view = BorrowPaginator(items, embed, partial(getBorrowsListEmbed, user=user, current=current))
         view.msg = await inter.original_response()
         embed.set_footer(text="Use arrows to move between pages")
         await view.msg.edit(embed=embed, view=view)
@@ -306,23 +289,13 @@ class GamesCog(Cog):
             embed = Embed(title="No borrow stats retrieved", description="Either this is a very weird error or no one has borrowed anything yet", color=Color.red())
             await inter.edit_original_response(embed=embed)
             return
-        formatted = order + " borrows"
-        if order == "time":
-            formatted = "borrow time"
-        embed = Embed(title=f"Borrow stats by {formatted}", color=Color.blue())
-        count = 0
         for entry in data:
-            user = await inter.guild.fetch_member(entry['user'])
-            if count == 0:
-                displayName = user.display_name + "🥇"
-            elif count == 1:
-                displayName = user.display_name + "🥈"
-            elif count == 2:
-                displayName = user.display_name + "🥉"
-            else:
-                displayName = user.display_name
-            embed.add_field(name=displayName, value=f"Total borrows: {entry['total']}\nCurrent borrows: {entry['current']}\nTotal borrow time: {format_time(entry['time'])}", inline=False)
-        await inter.edit_original_response(embed=embed)
+            entry['user'] = await inter.guild.fetch_member(entry['user'])
+        embed = getBorrowsStatsEmbed(data, order)
+        view = BorrowPaginator(data, embed, partial(getBorrowsStatsEmbed, order=order))
+        view.msg = await inter.original_response()
+        embed.set_footer(text="Use arrows to move between pages")
+        await view.msg.edit(embed=embed, view=view)
 
     @staticmethod
     async def _sendQueryEmbed(inter: ApplicationCommandInteraction, items: list, flags: str):
@@ -331,4 +304,3 @@ class GamesCog(Cog):
         embed.set_footer(text="Use arrows to move between pages")
         view.msg = await inter.original_response()
         await view.msg.edit(embed=embed, view=view)
-

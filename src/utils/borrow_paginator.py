@@ -1,5 +1,6 @@
 import math
 from http.client import HTTPException
+from typing import Callable
 
 import disnake
 from disnake import Embed, Member
@@ -9,16 +10,15 @@ from src.embed_helpers.common import getBorrowsListEmbed
 
 
 class BorrowPaginator(disnake.ui.View):
-    def __init__(self, items: list, initialEmbed: Embed, user: Member = None, current: bool = True):
+    def __init__(self, items: list, initialEmbed: Embed, embedFactory: Callable[[list], Embed]):
         super().__init__(timeout=30)
         self.msg = None
 
         self.embed_index = 0
         self.items = items
         self.pages = math.ceil(len(items) / 9.0)
-        self.user = user
         self.embed: Embed = initialEmbed
-        self.current = current
+        self.embedFactory = embedFactory
 
         self.first_page.disabled = True
         self.prev_page.disabled = True
@@ -27,7 +27,7 @@ class BorrowPaginator(disnake.ui.View):
 
     async def changeEmbed(self, interaction):
         itemSlice = self.items[self.embed_index * 9:self.embed_index * 9 + 9]
-        self.embed = getBorrowsListEmbed(itemSlice, self.user, self.current)
+        self.embed = self.embedFactory(itemSlice)  # getBorrowsListEmbed(itemSlice, self.user, self.current)
         self.embed.set_footer(text="page {} of {}".format(self.embed_index + 1, self.pages))
 
         self.prev_page.disabled = self.embed_index == 0
