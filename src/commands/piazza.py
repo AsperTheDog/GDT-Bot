@@ -292,7 +292,7 @@ class GamesCog(Cog):
         for entry in data:
             entry['user'] = await inter.guild.fetch_member(entry['user'])
         embed = getBorrowsStatsEmbed(data, order)
-        view = BorrowPaginator(data, embed, partial(getBorrowsStatsEmbed, order=order))
+        view = BorrowPaginator(data[:9], embed, partial(getBorrowsStatsEmbed, order=order))
         view.msg = await inter.original_response()
         embed.set_footer(text="Use arrows to move between pages")
         await view.msg.edit(embed=embed, view=view)
