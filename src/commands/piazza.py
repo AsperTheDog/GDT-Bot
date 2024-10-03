@@ -289,7 +289,8 @@ class GamesCog(Cog):
             embed = Embed(title="No borrow stats retrieved", description="Either this is a very weird error or no one has borrowed anything yet", color=Color.red())
             await inter.edit_original_response(embed=embed)
             return
-        for entry in data:
+        for count, entry in enumerate(data):
+            entry['rank'] = count + 1
             entry['user'] = await inter.guild.fetch_member(entry['user'])
         embed = getBorrowsStatsEmbed(data, order)
         view = BorrowPaginator(data[:9], embed, partial(getBorrowsStatsEmbed, order=order))
