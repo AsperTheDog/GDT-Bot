@@ -91,5 +91,5 @@ def getBorrowsStatsEmbed(borrows: list[dict], order: str):
     embed = Embed(title=f"Borrow stats by {formatted}", color=Color.dark_gold())
     for count, entry in enumerate(borrows):
         displayName = f"**[{entry['rank']}]** {entry['user'].display_name}"
-        embed.add_field(name=displayName, value=f"Total borrows: {entry['total']}\nCurrent borrows: {entry['current']}\nTotal borrow time: {format_time(entry['time'])}", inline=True)
+        embed.add_field(name=displayName, value=f"Total: {entry['total']}\nCurrent: {entry['current']}\nTime: {format_time(entry['time'])}", inline=True)
     return embed
