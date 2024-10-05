@@ -8,7 +8,7 @@ from disnake.ext.commands import Cog, slash_command
 
 from src.database import ObjectType, DBManager
 from src.embed_helpers.book import BookObj
-from src.embed_helpers.common import Difficulty, Platform, getBorrowsListEmbed, getBorrowsStatsEmbed
+from src.embed_helpers.common import Difficulty, Platform, getBorrowsListEmbed, getBorrowsStatsEmbed, getBorrowsItemStatsEmbed
 from src.utils.borrow_paginator import BorrowPaginator
 from src.utils.paginator import ItemPaginator
 

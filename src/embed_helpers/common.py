@@ -96,7 +96,7 @@ def getBorrowsStatsEmbed(borrows: list[dict], order: str):
     return embed
 
 
-def getBorrowItemStatsEmbed(borrow: list[dict], order: str):
+def getBorrowsItemStatsEmbed(borrow: list[dict], order: str):
     formatted = order + " borrows"
     if order == "time":
         formatted = "borrow time"
