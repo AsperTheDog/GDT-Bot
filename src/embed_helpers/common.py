@@ -67,24 +67,25 @@ def getBorrowsListEmbed(borrows: list[dict], user: Member, current: bool):
     return embed
 
 
+def format_time(minutes):
+    days = int(minutes // 1440)
+    hours = int((minutes % 1440) // 60)
+    mins = int(minutes % 60)
+    seconds = int((minutes - int(minutes)) * 60)
+
+    time_parts = []
+    if days > 0:
+        time_parts.append(f"{days}d")
+    if hours > 0:
+        time_parts.append(f"{hours}h")
+    if mins > 0:
+        time_parts.append(f"{mins}m")
+    if seconds > 0:
+        time_parts.append(f"{seconds}s")
+    return ' '.join(time_parts) if time_parts else '0m'
+
+
 def getBorrowsStatsEmbed(borrows: list[dict], order: str):
-    def format_time(minutes):
-        days = int(minutes // 1440)
-        hours = int((minutes % 1440) // 60)
-        mins = int(minutes % 60)
-        seconds = int((minutes - int(minutes)) * 60)
-
-        time_parts = []
-        if days > 0:
-            time_parts.append(f"{days}d")
-        if hours > 0:
-            time_parts.append(f"{hours}h")
-        if mins > 0:
-            time_parts.append(f"{mins}m")
-        if seconds > 0:
-            time_parts.append(f"{seconds}s")
-        return ' '.join(time_parts) if time_parts else '0m'
-
     formatted = order + " borrows"
     if order == "time":
         formatted = "borrow time"
@@ -92,4 +93,16 @@ def getBorrowsStatsEmbed(borrows: list[dict], order: str):
     for count, entry in enumerate(borrows):
         displayName = f"**[{entry['rank']}]** {entry['user'].display_name}"
         embed.add_field(name=displayName, value=f"Total: {entry['total']}\nCurrent: {entry['current']}\nTime: {format_time(entry['time'])}", inline=True)
+    return embed
+
+
+def getBorrowItemStatsEmbed(borrow: list[dict], order: str):
+    formatted = order + " borrows"
+    if order == "time":
+        formatted = "borrow time"
+    elif order == "usertime":
+        formatted = "longest borrow"
+    embed = Embed(title=f"Borrow stats by {formatted}", color=Color.dark_gold())
+    for count, entry in enumerate(borrow):
+        embed.add_field(name=f"**[{entry['rank']}]** {entry['name']}", value=f"Total: {entry['total']}\nTime: {format_time(entry['time'])}\nLongest borrow: {format_time(entry['usertime'])} by {entry['user'].mention}", inline=True)
     return embed

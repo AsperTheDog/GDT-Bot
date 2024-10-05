@@ -278,13 +278,21 @@ class GamesCog(Cog):
         await GamesCog.execGetBorrowsCommand(inter, False, user, private)
 
     @slash_command(name="getborrowstats", description="Get the borrow highscores!")
-    async def getBorrowStats(self, inter: ApplicationCommandInteraction, order: str = "amount", private: bool = True):
+    async def getBorrowStats(self, inter: ApplicationCommandInteraction, order: str = "amount", target: str = "user", private: bool = True):
         await inter.response.defer(ephemeral=private)
-        if order not in ["time", "amount", "count", "current"]:
-            order = "total"
-        elif order == "amount" or order == "count":
-            order = "total"
-        data = DBManager.getInstance().getBorrowStats(order)
+        if target not in ["user", "item"]:
+            target = "user"
+        if target == "user":
+            if order not in ["time", "amount", "count", "current"]:
+                order = "total"
+            elif order == "amount" or order == "count":
+                order = "total"
+        else:
+            if order not in ["time", "amount", "count", "usertime"]:
+                order = "total"
+            if order == "amount" or order == "count":
+                order = "total"
+        data = DBManager.getInstance().getBorrowStats(order, target)
         if len(data) == 0:
             embed = Embed(title="No borrow stats retrieved", description="Either this is a very weird error or no one has borrowed anything yet", color=Color.red())
             await inter.edit_original_response(embed=embed)
@@ -292,7 +300,7 @@ class GamesCog(Cog):
         for count, entry in enumerate(data):
             entry['rank'] = count + 1
             entry['user'] = await inter.guild.fetch_member(entry['user'])
-        embed = getBorrowsStatsEmbed(data[:9], order)
+        embed = getBorrowsStatsEmbed(data[:9], order) if target == "user" else getBorrowsItemStatsEmbed(data[:9], order)
         view = BorrowPaginator(data, embed, partial(getBorrowsStatsEmbed, order=order))
         view.msg = await inter.original_response()
         embed.set_footer(text="Use arrows to move between pages")
