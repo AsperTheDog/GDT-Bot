@@ -41,4 +41,4 @@ JOIN (
     GROUP BY item
 ) u ON bd.item = u.item AND bd.user = u.user
 GROUP BY i.id
-ORDER BY {};
+ORDER BY {} DESC;
