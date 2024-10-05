@@ -3,10 +3,7 @@ from http.client import HTTPException
 from typing import Callable
 
 import disnake
-from disnake import Embed, Member
-
-from src.database import DBManager
-from src.embed_helpers.common import getBorrowsListEmbed
+from disnake import Embed
 
 
 class BorrowPaginator(disnake.ui.View):
