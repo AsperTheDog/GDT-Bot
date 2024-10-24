@@ -11,5 +11,8 @@
     users: {
         "user1": 0,
         "user2": 0
+    },
+    "APIs": {
+        "Canvas": "TOKEN HERE"
     }
 }

@@ -305,6 +305,20 @@ class DBManager:
 
         return True, f"Item '{item_name}' returned successfully"
 
+    def returnAllItems(self, user: int):
+        cursor = self.connection.cursor()
+
+        # Get all game names that the user is borrowing
+        cursor.execute("SELECT items.name FROM borrows JOIN items ON borrows.item = items.id WHERE user = ? AND returned IS NULL", (user,))
+        items = cursor.fetchall()
+
+        if len(items) == 0:
+            return False, "You are not borrowing any items"
+
+        cursor.execute("UPDATE borrows SET returned = ? WHERE user = ? AND returned IS NULL", (datetime.now(), user))
+        self.connection.commit()
+        return True, "Successfully returned the following items:\n- " + "\n- ".join([item['name'] for item in items])
+
     def setReminderSent(self, user: int, item: int) -> bool:
         cursor = self.connection.cursor()
         cursor.execute("UPDATE borrows SET reminded = TRUE WHERE user = ? and item = ?", (user, item))

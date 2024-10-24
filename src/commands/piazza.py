@@ -217,6 +217,22 @@ class GamesCog(Cog):
             embed: Embed = Embed(title="Error borrowing item", description=message, color=Color.red())
         await inter.edit_original_response(embed=embed)
 
+    @slash_command(name="returnall", description="Return all items you borrowed from Piazza")
+    async def returnAllItems(self, inter: ApplicationCommandInteraction):
+        await inter.response.defer()
+        amount = DBManager.getInstance().getBorrowsAmount(inter.user.id, True)
+        if amount == 0:
+            embed = Embed(title="Error returning items", description="You have not borrowed any items from Piazza", color=Color.red())
+            await inter.edit_original_response(embed=embed)
+            return
+        success, message = DBManager.getInstance().returnAllItems(inter.user.id)
+        if not success:
+            embed = Embed(title="Error returning items", description=message, color=Color.red())
+            await inter.edit_original_response(embed=embed)
+            return
+        embed = Embed(title="Items returned", description=message, color=Color.green())
+        await inter.edit_original_response(embed=embed)
+
     @slash_command(name="return", description="Return something you borrowed to Piazza")
     async def returnItem(self, inter: ApplicationCommandInteraction, item: str):
         await inter.response.defer()
