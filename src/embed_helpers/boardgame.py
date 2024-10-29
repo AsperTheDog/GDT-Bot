@@ -30,8 +30,12 @@ class BoardGameObj:
     def createFromDB(boardGameDict: dict):
         if "play_difficulty" in boardGameDict and isinstance(boardGameDict["play_difficulty"], str):
             boardGameDict["play_difficulty"] = Difficulty(int(boardGameDict["play_difficulty"]))
+        elif "play_difficulty" in boardGameDict and isinstance(boardGameDict["play_difficulty"], int):
+            boardGameDict["play_difficulty"] = Difficulty(boardGameDict["play_difficulty"])
         if "learn_difficulty" in boardGameDict and isinstance(boardGameDict["learn_difficulty"], str):
             boardGameDict["learn_difficulty"] = Difficulty(int(boardGameDict["learn_difficulty"]))
+        elif "learn_difficulty" in boardGameDict and isinstance(boardGameDict["learn_difficulty"], int):
+            boardGameDict["learn_difficulty"] = Difficulty(boardGameDict["learn_difficulty"])
         return BoardGameObj(
             id=safeGet(boardGameDict, "id", -1),
             title=safeGet(boardGameDict, "name", "<NO NAME ERROR>"),
@@ -60,8 +64,12 @@ class BoardGameObj:
 
         if "play_difficulty" in extraData and isinstance(extraData["play_difficulty"], str):
             extraData["play_difficulty"] = Difficulty(int(extraData["play_difficulty"]))
+        elif "play_difficulty" in extraData and isinstance(extraData["play_difficulty"], int):
+            extraData["play_difficulty"] = Difficulty(extraData["play_difficulty"])
         if "learn_difficulty" in extraData and isinstance(extraData["learn_difficulty"], str):
             extraData["learn_difficulty"] = Difficulty(int(extraData["learn_difficulty"]))
+        elif "learn_difficulty" in extraData and isinstance(extraData["learn_difficulty"], int):
+            extraData["learn_difficulty"] = Difficulty(extraData["learn_difficulty"])
         description = safeGet(bggDict, "description", "<NO DESCRIPTION>")
         rank = safeGet(bggDict, ["statistics/ratings/ranks/rank/0/@value", "statistics/ratings/ranks/rank/@value"], "-1")
         return BoardGameObj(

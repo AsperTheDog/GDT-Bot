@@ -327,6 +327,13 @@ class DBManager:
 
     def insertBoardgame(self, bggCode: int, play_difficulty: Difficulty, learn_difficulty: Difficulty, copies: int) -> bool:
         cursor = self.connection.cursor()
+
+        cursor.execute("SELECT id FROM boardgames WHERE bgg_id = ?", (bggCode,))
+        existingData = cursor.fetchone()
+        if existingData is not None:
+            cursor.execute("UPDATE items SET copies = copies + ? WHERE id = ?", (copies, existingData['id']))
+            return True
+
         extraData = {bggCode: {
             "play_difficulty": play_difficulty,
             "learn_difficulty": learn_difficulty,
