@@ -334,6 +334,8 @@ class DBManager:
         }}
         from src.bgg import fetchBGGameData
         game = fetchBGGameData([bggCode], extraData)
+        if len(game) == 0:
+            return False
         queries = game[0].getInsertQueries(self.getNextItemID())
         for query, values in queries:
             cursor.execute(query, values)

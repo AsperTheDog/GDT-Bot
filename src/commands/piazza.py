@@ -38,7 +38,7 @@ class GamesCog(Cog):
         if DBManager.getInstance().insertBoardgame(bgg_code, Difficulty[play_difficulty.upper()], Difficulty[learn_difficulty.upper()], copies):
             embed: Embed = Embed(title="Boardgame inserted", description=f"Boardgame inserted successfully", color=Color.green())
         else:
-            embed: Embed = Embed(title="Error inserting boardgame", description=f"Error inserting boardgame, is it already present?", color=Color.red())
+            embed: Embed = Embed(title="Error inserting boardgame", description=f"Error inserting boardgame, is the BGG ID correct?", color=Color.red())
         await inter.edit_original_response(embed=embed)
 
     @slash_command(name="insertvg", description="Insert a new videogame into the database")
