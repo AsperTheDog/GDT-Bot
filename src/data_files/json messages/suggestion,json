@@ -1,0 +1,24 @@
+{
+    "id": 933701353,
+    "description": "The system is very simple. When you suggest a game, it will first look up if there could be any game already suggested with a similar name to potentially avoid duplicates (it does its best but it's not the most robust thing in the world, so please take a look at the list yourself before suggesting if you can).\nIf no duplicates are found (or you tell the bot you are sure this is a new game) then a suggestion will be added. \nIf you want to suggest a game that is already in the list, you can vote it instead, which will just add a star to it. When later Michael fetches the list of suggestions he will be able to see which games have the most votes.\n",
+    "fields": [
+        {
+        "id": 22100445,
+        "name": "/suggest <suggestion> <type>",
+        "value": "This command will (if no duplicates are found) add a new suggestion to the list\n- The **suggestion** argument is simply the name of the game or book you want to suggest\n- The **type** argument is the \"format\" of the item. This can be one of the following: Boardgame, Book, Switch, PS4, PS5, Xbox, Deck"
+        },
+        {
+        "id": 757088675,
+        "name": "/vote <suggestion>",
+        "value": "Vote for a specific item. It requires the exact game but will give you three suggestions if he things you were close to other items that are in the list (you can then just copy the name and try again). You obviously can't vote for an item more than once\n- The **suggestion** argument is just the name of the suggestion you want to vote for"
+        }
+    ],
+    "author": {
+        "name": "BorrowBot"
+    },
+    "title": "How do I suggest an item?",
+    "footer": {
+        "text": "For any extra questions please contact @asperthedog"
+    },
+    "color": 19183
+}

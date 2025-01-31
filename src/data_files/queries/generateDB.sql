@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS interests (
 
 CREATE TABLE IF NOT EXISTS suggestions (
     name TEXT NOT NULL PRIMARY KEY,
-    type TEXT NOT NULL,
+    suggestion_type TEXT NOT NULL,
     proposer INTEGER NOT NULL,
     proposed_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
