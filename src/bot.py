@@ -8,6 +8,7 @@ from disnake import ApplicationCommandInteraction, Embed, Color
 from disnake.ext.commands import InteractionBot, CommandSyncFlags, CommandError
 
 from src.commands.help_messages import HelperMsgCog
+from src.commands.suggestions import SuggestionsCog
 from src.database import DBManager
 from src.commands.general import GeneralCog
 from src.commands.piazza import GamesCog
@@ -91,6 +92,7 @@ def main():
     client.add_cog(GeneralCog(client))
     client.add_cog(BoardGamesCog(client))
     client.add_cog(HelperMsgCog(client))
+    client.add_cog(SuggestionsCog(client))
     client.error_logs_channel = data.errorLogsChannel
     client.userMapping = data.users
 

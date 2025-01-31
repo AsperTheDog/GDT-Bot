@@ -67,7 +67,12 @@ CREATE TABLE IF NOT EXISTS interests (
 CREATE TABLE IF NOT EXISTS suggestions (
     name TEXT NOT NULL PRIMARY KEY,
     type TEXT NOT NULL,
-    likes INTEGER DEFAULT 1,
     proposer INTEGER NOT NULL,
     proposed_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS suggestion_votes (
+    name TEXT NOT NULL,
+    user INTEGER NOT NULL,
+    FOREIGN KEY (name) REFERENCES suggestions(name) ON DELETE CASCADE
 );

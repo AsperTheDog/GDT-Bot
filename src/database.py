@@ -6,8 +6,6 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-from disnake import Embed, Color, ApplicationCommandInteraction, Member
-
 from src.embed_helpers.boardgame import BoardGameObj
 from src.embed_helpers.book import BookObj
 from src.embed_helpers.common import Difficulty, Platform
@@ -466,6 +464,77 @@ class DBManager:
         cursor.execute("DELETE FROM interests WHERE user = ? AND item = ?", (user, item))
         self.connection.commit()
         return True
+
+    def addSuggestion(self, user: int, suggestion: str, suggestion_type: str):
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT EXISTS(SELECT 1 FROM suggestions WHERE name = ?) AS suggestion_exists", (suggestion,))
+        if cursor.fetchone()['suggestion_exists']:
+            return False, "This suggestion already exists"
+        cursor.execute("INSERT INTO suggestions (name, proposer, suggestion_type) VALUES (?, ?, ?)", (suggestion, user, suggestion_type))
+        cursor.execute("INSERT INTO suggestion_votes (user, name) VALUES (?, ?)", (user, suggestion))
+        self.connection.commit()
+        return True, "Suggestion added successfully"
+
+    def getSuggestionNames(self, suggestion_type: str = ""):
+        cursor = self.connection.cursor()
+        if suggestion_type == "":
+            cursor.execute("SELECT name FROM suggestions")
+        else:
+            cursor.execute("SELECT name FROM suggestions WHERE suggestion_type = ?", (suggestion_type,))
+        names = [suggestion['name'] for suggestion in cursor.fetchall()]
+        return names
+
+    def getSuggestion(self, suggestion: str):
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT EXISTS(SELECT 1 FROM suggestions WHERE name = ?) AS suggestion_exists", (suggestion,));
+        if not cursor.fetchone()['suggestion_exists']:
+            return None, None
+        cursor.execute("SELECT * FROM suggestions WHERE name = ?", (suggestion,))
+        data = cursor.fetchone()
+        votes = []
+        cursor.execute("SELECT user FROM suggestion_votes WHERE name = ?", (suggestion,))
+        for vote in cursor.fetchall():
+            votes.append(vote['user'])
+        return data, votes
+
+    def getSuggestions(self):
+        cursor = self.connection.cursor()
+        suggestions = []
+        for suggestion in cursor.execute("SELECT * FROM suggestions").fetchall():
+            suggestion['votes'] = []
+            for vote in cursor.execute("SELECT user FROM suggestion_votes WHERE name = ?", (suggestion['name'],)).fetchall():
+                suggestion['votes'].append(vote['user'])
+            suggestions.append(suggestion)
+        return suggestions
+
+    def voteSuggestion(self, user: int, suggestion: str):
+        cursor = self.connection.cursor()
+        suggestionData, votes = self.getSuggestion(suggestion)
+        if suggestionData is None:
+            return False, "This suggestion does not exist"
+        if user in votes:
+            return False, "You have already voted for this suggestion"
+        cursor.execute("INSERT INTO suggestion_votes (user, name) VALUES (?, ?)", (user, suggestion))
+        cursor.execute("UPDATE suggestions SET likes = likes + 1 WHERE name = ?", (suggestion,))
+        self.connection.commit()
+        return True, "Vote registered successfully"
+
+    def unvoteSuggestion(self, user: int, suggestion: str):
+        cursor = self.connection.cursor()
+        suggestionData, votes = self.getSuggestion(suggestion)
+        if suggestionData is None:
+            return False, "This suggestion does not exist"
+        if user not in votes:
+            return False, "You have not voted for this suggestion"
+        cursor.execute("DELETE FROM suggestion_votes WHERE user = ? AND name = ?", (user, suggestion))
+        if len(votes) == 1:
+            cursor.execute("DELETE FROM suggestions WHERE name = ?", (suggestion,))
+            self.connection.commit()
+            return True, "Vote removed and suggestion deleted"
+        else:
+            cursor.execute("UPDATE suggestions SET likes = likes - 1 WHERE name = ?", (suggestion,))
+        self.connection.commit()
+        return True, "Vote removed successfully"
 
     def execute(self, query: str) -> (bool, str):
         try:
