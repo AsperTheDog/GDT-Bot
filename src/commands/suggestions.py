@@ -36,6 +36,11 @@ class SuggestionsCog(Cog):
                 newEmbed: Embed = Embed(title="Suggestion added", description=message, color=Color.green())
             return newEmbed
         await inter.response.defer()
+        if suggestion.upper() not in ["BOARDGAME", "BOOK", "SWITCH", "PS4", "PS5", "XBOX", "DECK"]:
+            embed = Embed(title="Invalid suggestion type", description="Please choose a valid suggestion type.\nValid types are Boardgame, Book, Switch, PS4, PS5, Xbox, Deck", color=Color.red())
+            await inter.edit_original_response(embed=embed)
+            return
+
         suggestionType = SuggestionType[type.upper()]
         suggestion = f"[{suggestionType.value}] {suggestion}"
         names = DBManager.getInstance().getSuggestionNames(suggestionType.name)
