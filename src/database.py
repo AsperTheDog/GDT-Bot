@@ -473,7 +473,7 @@ class DBManager:
         cursor.execute("INSERT INTO suggestions (name, proposer, suggestion_type) VALUES (?, ?, ?)", (suggestion, user, suggestion_type))
         cursor.execute("INSERT INTO suggestion_votes (user, name) VALUES (?, ?)", (user, suggestion))
         self.connection.commit()
-        return True, "Suggestion added successfully"
+        return True, f"A suggestion for **{suggestion}** was added successfully"
 
     def getSuggestionNames(self, suggestion_type: str = ""):
         cursor = self.connection.cursor()
