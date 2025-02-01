@@ -54,7 +54,7 @@ class SuggestionsCog(Cog):
                 string += f"\n**- {s}**"
             string += "\nIf your suggestion is already here, please cancel and vote on it instead"
             embed = Embed(title="Similar suggestions found", description=string, color=Color.orange())
-            view = ConfirmDialog(embed, partial(confirmInsertion, inter.author.id, suggestion, suggestionType.name), "My suggestion is new", "Cancel")
+            view = ConfirmDialog(embed, partial(confirmInsertion, inter.author.id, suggestion, suggestionType.name), inter.author.id, "My suggestion is new", "Cancel")
             msg = await inter.original_response()
             await msg.edit(embed=embed, view=view)
         else:
@@ -86,7 +86,7 @@ class SuggestionsCog(Cog):
                     string += f"\n- {name}"
                 embed = Embed(title="Suggestion not found", description=string, color=Color.red())
                 suggestionData, votes = DBManager.getInstance().getSuggestion(names[0])
-                view = ConfirmDialog(embed, partial(confirmVote, inter.author.id, suggestionData['name'], len(votes) + 1), "Vote First Suggestion", "Cancel")
+                view = ConfirmDialog(embed, partial(confirmVote, inter.author.id, suggestionData['name'], len(votes) + 1), inter.author.id, "Vote First Suggestion", "Cancel")
                 msg = await inter.original_response()
                 await msg.edit(embed=embed, view=view)
             else:
