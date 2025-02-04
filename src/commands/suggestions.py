@@ -123,7 +123,7 @@ class SuggestionsCog(Cog):
         msg = await inter.original_response()
         await msg.edit(view=view, embed=view.embed)
 
-    @slash_command(name="updatestatus", description="Update suggestion status")
+    @slash_command(name="updatesuggestionstatus", description="Update suggestion status")
     async def updatestatus(self, inter: ApplicationCommandInteraction, suggestion: str, status: str):
         await inter.response.defer()
         status = SuggestionStatus[status.upper()]
