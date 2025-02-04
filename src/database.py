@@ -475,6 +475,16 @@ class DBManager:
         self.connection.commit()
         return True, f"A suggestion for **{suggestion}** was added successfully"
 
+    def deleteSuggestion(self, suggestion: str):
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT EXISTS(SELECT 1 FROM suggestions WHERE name = ?) AS suggestion_exists", (suggestion,))
+        if not cursor.fetchone()['suggestion_exists']:
+            return False, "This suggestion does not exist"
+        cursor.execute("DELETE FROM suggestions WHERE name = ?", (suggestion,))
+        cursor.execute("DELETE FROM suggestion_votes WHERE name = ?", (suggestion,))
+        self.connection.commit()
+        return True, "Suggestion deleted successfully"
+
     def getSuggestionNames(self, suggestion_type: str = ""):
         cursor = self.connection.cursor()
         if suggestion_type == "":

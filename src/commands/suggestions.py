@@ -21,6 +21,7 @@ class SuggestionType(Enum):
     XBOX = "XBOX"
     DECK = "DECK"
 
+
 class SuggestionStatus(Enum):
     PENDING = "🕐"
     ACCEPTED = "✅"
@@ -52,6 +53,7 @@ class SuggestionsCog(Cog):
             else:
                 newEmbed: Embed = Embed(title="Suggestion added", description=message, color=Color.green())
             return newEmbed
+
         await inter.response.defer()
         if type.upper() not in ["BOARDGAME", "BOOK", "SWITCH", "PS4", "PS5", "XBOX", "DECK"]:
             embed = Embed(title="Invalid suggestion type", description="Please choose a valid suggestion type.\nValid types are Boardgame, Book, Switch, PS4, PS5, Xbox, Deck", color=Color.red())
@@ -83,6 +85,7 @@ class SuggestionsCog(Cog):
             else:
                 newEmbed = Embed(title="Suggestion voted", description=f"{suggestionName} now has **{voteCount} votes**", color=Color.green())
             return newEmbed
+
         await inter.response.defer()
         suggestionData, votes = DBManager.getInstance().getSuggestion(suggestion)
         if suggestionData is None:
@@ -137,4 +140,36 @@ class SuggestionsCog(Cog):
             await inter.edit_original_response(embed=embed)
         else:
             embed = Embed(title="Update successful", description=message, color=Color.green())
+        await inter.edit_original_response(embed=embed)
+
+    @slash_command(name="mergesuggestion", description="Merge two suggestions into one")
+    async def mergesuggestion(self, inter: ApplicationCommandInteraction, suggestion1: str, suggestion2: str):
+        await inter.response.defer()
+        suggestion1Data = DBManager.getInstance().getSuggestion(suggestion1)
+        suggestion2Data = DBManager.getInstance().getSuggestion(suggestion2)
+        for vote in suggestion2Data['votes']:
+            if vote not in suggestion1Data['votes']:
+                DBManager.getInstance().voteSuggestion(vote, suggestion1)
+        success, _ = DBManager.getInstance().deleteSuggestion(suggestion2)
+        if not success:
+            embed = Embed(title="Merge failed", description="Failed to delete second suggestion", color=Color.red())
+        else:
+            embed = Embed(title="Merge successful", description="Second suggestion merged into first suggestion", color=Color.green())
+        await inter.edit_original_response(embed=embed)
+
+    @slash_command(name="deletesuggestion", description="Delete a suggestion")
+    async def deletesuggestion(self, inter: ApplicationCommandInteraction, suggestion: str):
+        await inter.response.defer()
+        success, _ = DBManager.getInstance().deleteSuggestion(suggestion)
+        if not success:
+            names = SuggestionsCog.getAlternatives(suggestion)
+            if len(names) > 0:
+                string = "Did you mean:"
+                for name in names:
+                    string += f"\n- {name}"
+                embed = Embed(title="Suggestion not found", description=string, color=Color.red())
+            else:
+                embed = Embed(title="Suggestion not found", description="No similar suggestions found", color=Color.red())
+        else:
+            embed = Embed(title="Deletion successful", description="Suggestion deleted successfully", color=Color.green())
         await inter.edit_original_response(embed=embed)
