@@ -66,7 +66,7 @@ class SuggestionsCog(Cog):
         if len(names) > 0:
             string = "Before you continue, these are the most similar suggestions found:"
             for name in names:
-                string += f"\n**- {name}**"
+                string += f"\n- **{name}**"
             string += "\nIf your suggestion is already here, please cancel and vote on it instead"
             embed = Embed(title="Confirm suggestion", description=string, color=Color.orange())
             view = ConfirmDialog(embed, partial(confirmInsertion, inter.author.id, suggestion, suggestionType.name), inter.author.id, "Confirm", "Cancel")
@@ -76,7 +76,7 @@ class SuggestionsCog(Cog):
             embed = confirmInsertion(inter.author.id, suggestion, suggestionType.name)
             await inter.edit_original_response(embed=embed)
 
-    @slash_command(name="vote", description="Vote a suggestion")
+    @slash_command(name="votesuggestion", description="Vote a suggestion")
     async def vote(self, inter: ApplicationCommandInteraction, suggestion: str):
         def confirmVote(authorID: int, suggestionName: str, voteCount: int):
             succ, errMsg = DBManager.getInstance().voteSuggestion(authorID, suggestionName)
@@ -103,13 +103,17 @@ class SuggestionsCog(Cog):
                 embed = Embed(title="Suggestion not found", description="No similar suggestions found", color=Color.red())
                 await inter.edit_original_response(embed=embed)
         else:
+            if suggestionData['status'] == SuggestionStatus.BOUGHT.name or suggestionData['status'] == SuggestionStatus.REJECTED.name:
+                embed = Embed(title="Vote failed", description="Suggestion is already bought or is rejected", color=Color.red())
+                await inter.edit_original_response(embed=embed)
+                return
             embed = confirmVote(authorID=inter.author.id, suggestionName=suggestionData['name'], voteCount=len(votes) + 1)
             await inter.edit_original_response(embed=embed)
 
     @slash_command(name="getsuggestions", description="Get all suggestions")
-    async def getsuggestions(self, inter: ApplicationCommandInteraction):
+    async def getsuggestions(self, inter: ApplicationCommandInteraction, showrejected: bool = False, showbought: bool = False):
         await inter.response.defer()
-        suggestions = DBManager.getInstance().getSuggestions()
+        suggestions = DBManager.getInstance().getSuggestions(showrejected, showbought)
         if len(suggestions) == 0:
             embed = Embed(title="No suggestions", description="No suggestions have been made yet", color=Color.red())
             await inter.edit_original_response(embed=embed)

@@ -507,10 +507,19 @@ class DBManager:
             votes.append(vote['user'])
         return data, votes
 
-    def getSuggestions(self):
+    def getSuggestions(self, showRejected: bool = False, showBought: bool = False):
         cursor = self.connection.cursor()
         suggestions = []
-        for suggestion in cursor.execute("SELECT * FROM suggestions").fetchall():
+        whereClause = ""
+        if not showRejected:
+            whereClause += " WHERE status != 'REJECTED'"
+        if not showBought:
+            if whereClause == "":
+                whereClause += " WHERE "
+            else:
+                whereClause += " AND "
+            whereClause += "status != 'BOUGHT'"
+        for suggestion in cursor.execute("SELECT * FROM suggestions" + whereClause).fetchall():
             suggestion['votes'] = []
             for vote in cursor.execute("SELECT user FROM suggestion_votes WHERE name = ?", (suggestion['name'],)).fetchall():
                 suggestion['votes'].append(vote['user'])
