@@ -111,8 +111,8 @@ class SuggestionsCog(Cog):
             await inter.edit_original_response(embed=embed)
 
     @slash_command(name="getsuggestions", description="Get all suggestions")
-    async def getsuggestions(self, inter: ApplicationCommandInteraction, showrejected: bool = False, showbought: bool = False):
-        await inter.response.defer()
+    async def getsuggestions(self, inter: ApplicationCommandInteraction, showrejected: bool = False, showbought: bool = False, private: bool = True):
+        await inter.response.defer(ephemeral=private)
         suggestions = DBManager.getInstance().getSuggestions(showrejected, showbought)
         if len(suggestions) == 0:
             embed = Embed(title="No suggestions", description="No suggestions have been made yet", color=Color.red())
