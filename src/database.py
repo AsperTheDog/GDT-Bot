@@ -536,6 +536,15 @@ class DBManager:
         self.connection.commit()
         return True, "Vote removed successfully"
 
+    def updateSuggestionStatus(self, suggestion: str, status: str):
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT EXISTS(SELECT 1 FROM suggestions WHERE name = ?) AS suggestion_exists", (suggestion,))
+        if not cursor.fetchone()['suggestion_exists']:
+            return False, "This suggestion does not exist"
+        cursor.execute("UPDATE suggestions SET status = ? WHERE name = ?", (status, suggestion))
+        self.connection.commit()
+        return True, "Suggestion status updated successfully"
+
     def execute(self, query: str) -> (bool, str):
         try:
             cursor = self.connection.cursor()

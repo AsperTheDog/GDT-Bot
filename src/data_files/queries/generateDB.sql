@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS suggestions (
     name TEXT NOT NULL PRIMARY KEY,
     suggestion_type TEXT NOT NULL,
     proposer INTEGER NOT NULL,
+    statuc TEXT NOT NULL DEFAULT 'PENDING',
     proposed_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
