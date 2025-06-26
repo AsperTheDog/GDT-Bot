@@ -45,6 +45,3 @@ class ReactionRoleCog(commands.Cog):
         if role:
             await member.add_roles(role, reason="Reaction role chosen")
             print(f"Assigned role {role.name} to {member.display_name}")
-
-def setup(bot):
-    bot.add_cog(ReactionRoleCog(bot))
