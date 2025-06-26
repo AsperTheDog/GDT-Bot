@@ -1,11 +1,12 @@
 import disnake
 from disnake.ext import commands
 
-class ReactionRoleCog(commands.Cog):
+class RoleManagerCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.guild_id = 1 #servers id
         self.message_id_to_watch = 1 # pinned message id
+        self.default_role_id = 1387769959979028570 # restricted role id
 
         self.emoji_role_map = {
             # program student
@@ -45,3 +46,14 @@ class ReactionRoleCog(commands.Cog):
         if role:
             await member.add_roles(role, reason="Reaction role chosen")
             print(f"Assigned role {role.name} to {member.display_name}")
+
+    @commands.Cog.listener()
+    async def on_member_join(self, member: disnake.Member):
+        role = member.guild.get_role(self.default_role_id)
+        if role:
+            try:
+                await member.add_roles(role, reason="Automatic role assignment on join")
+            except disnake.Forbidden:
+                print(f"Missing permissions to assign role {role.name} to {member}")
+            except Exception as e:
+                print(f"Error assigning role: {e}")
