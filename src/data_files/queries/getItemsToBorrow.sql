@@ -1,4 +1,4 @@
-SELECT i.id
+SELECT i.id, i.name
 FROM items i
 LEFT JOIN (
     SELECT item, SUM(amount) AS borrowed_amount
@@ -13,4 +13,5 @@ AND i.id NOT IN (
     FROM borrows
     WHERE user = ?
     AND returned IS NULL
-);
+)
+ORDER BY i.name ASC;

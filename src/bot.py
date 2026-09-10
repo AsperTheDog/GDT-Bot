@@ -1,59 +1,104 @@
-import json
-import os
+import logging
 import sys
 import traceback
-from dataclasses import dataclass
+from pathlib import Path
 
-from disnake import ApplicationCommandInteraction, Embed, Color
-from disnake.ext.commands import InteractionBot, CommandSyncFlags, CommandError
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.commands.help_messages import HelperMsgCog
-from src.commands.suggestions import SuggestionsCog
-from src.database import DBManager
-from src.commands.general import GeneralCog
-from src.commands.piazza import GamesCog
+import discord
+from discord import app_commands
+from discord.ext import commands
+
 from src.commands.boardgamegeek import BoardGamesCog
-
-configFileName = "data_files/config.json"
-databasePath = "data_files/database.sqlite"
-
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
-
-
-@dataclass
-class BotConfigData:
-    # SECURITY
-    token: str
-    ownerIDs: [int]
-
-    # DEBUG
-    syncCommandsDebug: bool
-    testGuilds: [int]
-    errorLogsChannel: int
-
-    users: dict = None
+from src.commands.general import GeneralCog
+from src.commands.help_messages import HelperMsgCog
+from src.commands.piazza import GamesCog
+from src.commands.suggestions import SuggestionsCog
+from src.config import BotConfigData, configure
+from src.database import DBManager
+from src.files import DATABASE_PATH
 
 
-def configure() -> BotConfigData | None:
-    if not os.path.exists(configFileName):
-        with open(f"{configFileName}.example", "r") as example, open(configFileName, "w") as configFile:
-            configFile.write(example.read())
-        print(f"Please configure the bot by editing '{configFileName}'")
-        return None
-    with open(configFileName, "r") as configFile:
-        data: dict = json.load(configFile)
-        return BotConfigData(
-            token=data["security"]["token"],
-            ownerIDs=data["security"]["ownerIDs"],
-            syncCommandsDebug=data["debug"]["syncCommandsDebug"],
-            testGuilds=data["debug"]["testGuilds"],
-            errorLogsChannel=data["debug"]["errorLogsChannel"],
-            users=data["users"]
-        )
-
-
-def initializeBot(bot: InteractionBot):
+def initializeBot(bot: commands.Bot):
     print(f"Bot is ready as {bot.user}")
+
+
+class GDTBot(commands.Bot):
+    def __init__(self, config: BotConfigData):
+        super().__init__(command_prefix=commands.when_mentioned, intents=discord.Intents.default(),
+                         owner_ids=set(config.ownerIDs), help_command=None)
+        self.config = config
+        self.user_mapping = config.users
+
+    async def setup_hook(self):
+        if self.config.syncCommandsDebug:
+            logging.getLogger("discord.app_commands").setLevel(logging.DEBUG)
+        database = DBManager(str(DATABASE_PATH))
+        if database.needsPopulating:
+            await database.populateDefaultData(self.config.bggEnabled)
+        await self.add_cog(GamesCog(self))
+        await self.add_cog(GeneralCog(self))
+        await self.add_cog(BoardGamesCog(self))
+        await self.add_cog(HelperMsgCog(self))
+        await self.add_cog(SuggestionsCog(self))
+        self.tree.on_error = self.onAppCommandError
+        await self.syncCommands()
+
+    async def syncCommands(self):
+        for guildID in self.config.testGuilds:
+            guild = discord.Object(id=guildID)
+            self.tree.copy_global_to(guild=guild)
+            await self.tree.sync(guild=guild)
+            print(f"Synced commands to test guild {guildID}")
+        synced = await self.tree.sync()
+        print(f"Synced {len(synced)} commands globally")
+
+    async def on_ready(self):
+        initializeBot(self)
+
+    async def close(self):
+        await super().close()
+        if DBManager.instance is not None:
+            DBManager.instance.close()
+
+    @staticmethod
+    async def respondError(interaction: discord.Interaction, embed: discord.Embed):
+        try:
+            if interaction.response.is_done():
+                await interaction.edit_original_response(embed=embed)
+            else:
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+        except discord.HTTPException:
+            pass
+
+    async def onAppCommandError(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        command = interaction.command
+        if isinstance(error, app_commands.CheckFailure):
+            embed = discord.Embed(title="Error", description="You are not allowed to use this command", color=discord.Color.red())
+            await GDTBot.respondError(interaction, embed)
+            return
+
+        options = interaction.data.get("options", []) if isinstance(interaction.data, dict) else []
+        arguments = ", ".join(f"{option['name']}: {option.get('value')}" for option in options) if len(options) > 0 else "None"
+        embed = discord.Embed(title="Error", description=str(error), color=discord.Color.red())
+        embed.add_field(name="Command", value=command.qualified_name if command is not None else "Unknown")
+        embed.add_field(name="Arguments", value=arguments)
+        embed.add_field(name="User", value=interaction.user.mention)
+        embed.add_field(name="Channel", value=getattr(interaction.channel, "mention", "Unknown"))
+        embed.set_footer(text=interaction.created_at.strftime("%Y-%m-%d %H:%M:%S"))
+
+        channel = self.get_channel(self.config.errorLogsChannel)
+        if channel is not None:
+            try:
+                await channel.send(embed=embed)
+            except discord.HTTPException:
+                pass
+
+        print(f"Ignoring exception in slash command {command.name if command is not None else 'unknown'!r}:", file=sys.stderr)
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+        msgEmbed = discord.Embed(title="An error occurred", description="An error occurred while processing your command, developers have been notified. Heads will roll...", color=discord.Color.red())
+        await GDTBot.respondError(interaction, msgEmbed)
 
 
 def main():
@@ -61,41 +106,7 @@ def main():
     if data is None:
         return
 
-    DBManager.initInstance(databasePath)
-
-    client: InteractionBot = InteractionBot(
-        command_sync_flags=CommandSyncFlags(sync_commands_debug=data.syncCommandsDebug),
-        test_guilds=data.testGuilds
-    )
-
-    @client.event
-    async def on_ready():
-        initializeBot(client)
-
-    @client.event
-    async def on_slash_command_error(inter: ApplicationCommandInteraction, error: CommandError):
-        embed = Embed(title="Error", description=str(error), color=Color.red())
-        embed.add_field(name="Command", value=inter.application_command.name)
-        embed.add_field(name="Arguments", value=str(inter.filled_options))
-        embed.add_field(name="User", value=inter.author.mention)
-        embed.add_field(name="Channel", value=inter.channel.mention)
-        embed.set_footer(text=str(inter.created_at.strftime("%Y-%m-%d %H:%M:%S")))
-        await inter.guild.get_channel(client.error_logs_channel).send(embed=embed)
-
-        command = inter.application_command
-        print(f"Ignoring exception in slash command {command.name!r}:", file=sys.stderr)
-        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
-        msgEmbed = Embed(title="An error occurred", description="An error occurred while processing your command, developers have been notified. Heads will roll...", color=Color.red())
-        await inter.edit_original_response(embed=msgEmbed)
-
-    client.add_cog(GamesCog(client))
-    client.add_cog(GeneralCog(client))
-    client.add_cog(BoardGamesCog(client))
-    client.add_cog(HelperMsgCog(client))
-    client.add_cog(SuggestionsCog(client))
-    client.error_logs_channel = data.errorLogsChannel
-    client.userMapping = data.users
-
+    client: GDTBot = GDTBot(data)
     client.run(data.token)
 
 

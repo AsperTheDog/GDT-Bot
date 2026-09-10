@@ -1,0 +1,4 @@
+discord.py>=2.7.1
+rapidfuzz>=3.0
+tzdata>=2025.1
+xmltodict>=1.0

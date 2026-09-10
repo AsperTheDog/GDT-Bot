@@ -1,10 +1,12 @@
 from dataclasses import dataclass
 from html import unescape
-from disnake import Embed, Color
+
+from discord import Embed, Color
 
 from src.embed_helpers.common import Difficulty, safeGet
 
 BASE_URL: str = f'https://boardgamegeek.com/boardgame/'
+DEFAULT_THUMBNAIL: str = "https://i.imgur.com/OJhoTqu.png"
 
 
 @dataclass
@@ -24,7 +26,7 @@ class BoardGameObj:
     rank: int = -1
     averageRating: float = -1.0
     bggRating: float = -1.0
-    thumbnail: str = "https://i.imgur.com/OJhoTqu.png"
+    thumbnail: str = DEFAULT_THUMBNAIL
 
     @staticmethod
     def createFromDB(boardGameDict: dict):
@@ -52,7 +54,7 @@ class BoardGameObj:
             rank=safeGet(boardGameDict, "bgg_rank", -1),
             averageRating=safeGet(boardGameDict, "bgg_average_rating", -1.0),
             bggRating=safeGet(boardGameDict, "bgg_rating", -1.0),
-            thumbnail=safeGet(boardGameDict, "thumbnail", "https://i.imgur.com/OJhoTqu.png")
+            thumbnail=safeGet(boardGameDict, "thumbnail", DEFAULT_THUMBNAIL)
         )
 
     @staticmethod

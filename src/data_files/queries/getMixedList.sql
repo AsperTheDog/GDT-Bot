@@ -11,3 +11,4 @@ FROM
     items i
 JOIN
     borrows b ON i.id = b.item {0}
+ORDER BY b.retrieval_date DESC

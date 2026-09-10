@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 
-from disnake import Embed, Color
+from discord import Embed, Color
 
 from src.embed_helpers.common import Difficulty, Platform, safeGet
+
+DEFAULT_THUMBNAIL = "https://i.imgur.com/OJhoTqu.png"
 
 
 @dataclass
@@ -16,31 +18,31 @@ class VideoGameObj:
     copies_available: int = -1
     difficulty: Difficulty = Difficulty.UNDEFINED
     platform: Platform = Platform.UNDEFINED
-    thumbnail: str = "https://i.imgur.com/OJhoTqu.png"
+    thumbnail: str = DEFAULT_THUMBNAIL
     description: str = "No description available"
     categories: list[str] = ()
     length: int = 0
 
     @staticmethod
-    def createFromDB(boardGameDict: dict):
-        if "difficulty" in boardGameDict and isinstance(boardGameDict["difficulty"], str):
-            boardGameDict["difficulty"] = Difficulty(int(boardGameDict["difficulty"]))
-        if "platform" in boardGameDict and isinstance(boardGameDict["platform"], str):
-            boardGameDict["platform"] = Platform(int(boardGameDict["platform"]))
+    def createFromDB(videoGameDict: dict):
+        if "difficulty" in videoGameDict and isinstance(videoGameDict["difficulty"], str):
+            videoGameDict["difficulty"] = Difficulty(int(videoGameDict["difficulty"]))
+        if "platform" in videoGameDict and isinstance(videoGameDict["platform"], str):
+            videoGameDict["platform"] = Platform(int(videoGameDict["platform"]))
         return VideoGameObj(
-            id=safeGet(boardGameDict, "id", -1),
-            title=safeGet(boardGameDict, "name", "<NO TITLE>"),
-            minPlayers=safeGet(boardGameDict, "min_players", -1),
-            maxPlayers=safeGet(boardGameDict, "max_players", -1),
-            playingTime=safeGet(boardGameDict, "length", -1),
-            copies=safeGet(boardGameDict, "copies", 0),
-            copies_available=safeGet(boardGameDict, "available_copies", -1),
-            difficulty=safeGet(boardGameDict, "difficulty", Difficulty.UNDEFINED),
-            platform=safeGet(boardGameDict, "platform", Platform.UNDEFINED),
-            thumbnail=safeGet(boardGameDict, "thumbnail", "https://i.imgur.com/OJhoTqu.png"),
-            description=safeGet(boardGameDict, "description", "No description available"),
-            categories=safeGet(boardGameDict, "categories", []),
-            length=safeGet(boardGameDict, "length", 0)
+            id=safeGet(videoGameDict, "id", -1),
+            title=safeGet(videoGameDict, "name", "<NO TITLE>"),
+            minPlayers=safeGet(videoGameDict, "min_players", -1),
+            maxPlayers=safeGet(videoGameDict, "max_players", -1),
+            playingTime=safeGet(videoGameDict, "length", -1),
+            copies=safeGet(videoGameDict, "copies", 0),
+            copies_available=safeGet(videoGameDict, "available_copies", -1),
+            difficulty=safeGet(videoGameDict, "difficulty", Difficulty.UNDEFINED),
+            platform=safeGet(videoGameDict, "platform", Platform.UNDEFINED),
+            thumbnail=safeGet(videoGameDict, "thumbnail", DEFAULT_THUMBNAIL),
+            description=safeGet(videoGameDict, "description", "No description available"),
+            categories=safeGet(videoGameDict, "categories", []),
+            length=safeGet(videoGameDict, "length", 0)
         )
 
     def getEmbed(self, flags: [str]) -> Embed:

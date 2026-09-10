@@ -8,11 +8,11 @@
         "testGuilds": [],
         "errorLogsChannel": 0
     },
-    users: {
+    "features": {
+        "bgg": true
+    },
+    "users": {
         "user1": 0,
         "user2": 0
-    },
-    "APIs": {
-        "Canvas": "TOKEN HERE"
     }
 }

@@ -1,6 +1,6 @@
 from enum import Enum
 
-from disnake import Member, Embed, Color
+from discord import Member, User, Embed, Color
 
 
 class Difficulty(Enum):
@@ -38,7 +38,15 @@ def safeGet(dictionary: dict, paths: list[str] | str, default):
     return default
 
 
-def getBorrowsListEmbed(borrows: list[dict], user: Member, current: bool):
+def displayName(user: User | int) -> str:
+    return getattr(user, "display_name", "Unknown user")
+
+
+def mention(user: User | int) -> str:
+    return getattr(user, "mention", f"<@{user}>")
+
+
+def getBorrowsListEmbed(borrows: list[dict], user: Member | None, current: bool):
     if user is not None:
         titleAppend: str = " by " + (user.nick if user.nick is not None else user.name)
     else:
@@ -60,7 +68,6 @@ def getBorrowsListEmbed(borrows: list[dict], user: Member, current: bool):
             content = f"{author}\nRetrieved: {retrieval_date}\nReturned: {returned}"
         embed.add_field(name=f"{entry['name']} ({itemType})", value=content, inline=True)
 
-    # Add empty fields to make the embed look better
     if len(borrows) < 9:
         for _ in range(9 - len(borrows)):
             embed.add_field(name="\u200b", value="\u200b", inline=True)
@@ -91,8 +98,8 @@ def getBorrowsStatsEmbed(borrows: list[dict], order: str):
         formatted = "borrow time"
     embed = Embed(title=f"Borrow stats by {formatted}", color=Color.dark_gold())
     for count, entry in enumerate(borrows):
-        displayName = f"**[{entry['rank']}]** {entry['user'].display_name}"
-        embed.add_field(name=displayName, value=f"Total: {entry['total']}\nCurrent: {entry['current']}\nTime: {format_time(entry['time'])}", inline=True)
+        display = f"**[{entry['rank']}]** {displayName(entry['user'])}"
+        embed.add_field(name=display, value=f"Total: {entry['total']}\nCurrent: {entry['current']}\nTime: {format_time(entry['time'])}", inline=True)
     return embed
 
 
@@ -104,5 +111,5 @@ def getBorrowsItemStatsEmbed(borrow: list[dict], order: str):
         formatted = "longest borrow"
     embed = Embed(title=f"Borrow stats by {formatted}", color=Color.dark_gold())
     for count, entry in enumerate(borrow):
-        embed.add_field(name=f"**[{entry['rank']}]** {entry['name']}", value=f"Total: {entry['total']}\nTime: {format_time(entry['time'])}\nLongest borrow: {format_time(entry['usertime'])} by {entry['user'].mention}", inline=True)
+        embed.add_field(name=f"**[{entry['rank']}]** {entry['name']}", value=f"Total: {entry['total']}\nTime: {format_time(entry['time'])}\nLongest borrow: {format_time(entry['usertime'])} by {mention(entry['user'])}", inline=True)
     return embed

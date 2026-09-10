@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 
-from disnake import Embed, Color
+from discord import Embed, Color
 
 from src.embed_helpers.common import safeGet
+
+DEFAULT_THUMBNAIL = "https://i.imgur.com/OJhoTqu.png"
 
 
 @dataclass
@@ -13,7 +15,7 @@ class BookObj:
     pages: int
     copies: int
     copies_available: int
-    thumbnail: str = "https://i.imgur.com/OJhoTqu.png"
+    thumbnail: str = DEFAULT_THUMBNAIL
     description: str = "No description available"
     categories: list[str] = ()
 
@@ -26,7 +28,7 @@ class BookObj:
             pages=safeGet(bookDict, "length", -1),
             copies=safeGet(bookDict, "copies", -1),
             copies_available=safeGet(bookDict, "available_copies", -1),
-            thumbnail=safeGet(bookDict, "thumbnail", "https://i.imgur.com/OJhoTqu.png"),
+            thumbnail=safeGet(bookDict, "thumbnail", DEFAULT_THUMBNAIL),
             description=safeGet(bookDict, "description", "No description available"),
             categories=safeGet(bookDict, "categories", [])
         )

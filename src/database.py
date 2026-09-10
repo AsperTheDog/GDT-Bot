@@ -1,15 +1,15 @@
-import os
-import sqlite3 as SQLite
 import csv
-from datetime import datetime
-
+import sqlite3 as SQLite
+from datetime import date, datetime
 from enum import Enum
+from pathlib import Path
 from typing import Any
 
 from src.embed_helpers.boardgame import BoardGameObj
 from src.embed_helpers.book import BookObj
 from src.embed_helpers.common import Difficulty, Platform
 from src.embed_helpers.videogame import VideoGameObj
+from src.files import DATABASE_PATH, OTHER_DIR, query
 
 
 class Operation(Enum):
@@ -27,30 +27,91 @@ class ObjectType(Enum):
     BOOK = "books"
 
 
+FILTER_COLUMNS: dict[ObjectType, dict[str, str]] = {
+    ObjectType.BOARDGAME: {
+        "name": "name",
+        "play_difficulty": "play_difficulty",
+        "learn_difficulty": "learn_difficulty",
+        "min_players": "min_players",
+        "max_players": "max_players",
+        "length": "length"
+    },
+    ObjectType.VIDEOGAME: {
+        "name": "name",
+        "difficulty": "difficulty",
+        "platform": "platform",
+        "min_players": "min_players",
+        "max_players": "max_players",
+        "length": "length"
+    },
+    ObjectType.BOOK: {
+        "name": "name",
+        "author": "author",
+        "length": "length"
+    }
+}
+
+DEFAULT_THUMBNAIL = "https://i.imgur.com/OJhoTqu.png"
+DEFAULT_DESCRIPTION = "No description available"
+NUMERIC_COLUMNS = ("length", "copies", "min_players", "max_players", "difficulty", "platform", "play_difficulty", "learn_difficulty")
+
+ITEM_COLUMNS = ("name", "description", "thumbnail", "copies", "length")
+TYPE_COLUMNS: dict[ObjectType, tuple[str, ...]] = {
+    ObjectType.BOARDGAME: ("min_players", "max_players", "play_difficulty", "learn_difficulty"),
+    ObjectType.VIDEOGAME: ("min_players", "max_players", "difficulty", "platform"),
+    ObjectType.BOOK: ("author",)
+}
+
+SQLite.register_adapter(datetime, lambda value: value.isoformat(sep=" "))
+SQLite.register_adapter(date, lambda value: value.isoformat())
+
+
+def normalizeSeedRow(entry: dict) -> dict:
+    for column in NUMERIC_COLUMNS:
+        if column in entry and not entry[column].strip().isdigit():
+            entry[column] = "0"
+    return entry
+
+
+def withPagination(statement: str, limit: int, offset: int, arguments: list) -> str:
+    if limit <= 0:
+        return statement
+    clause = " LIMIT ? "
+    arguments.append(limit)
+    if offset > 0:
+        clause += " OFFSET ? "
+        arguments.append(offset)
+    return statement.rstrip().rstrip(";") + clause
+
+
+def parseDateTime(value: str | None) -> datetime | None:
+    if value is None:
+        return None
+    for pattern in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(value, pattern)
+        except ValueError:
+            continue
+    return None
+
+
 def dict_factory(cursor, row):
-    d = {}
-    for idx, col in enumerate(cursor.description):
-        d[col[0]] = row[idx]
-        if col[0] in ["play_difficulty", "learn_difficulty", "difficulty"]:
-            d[col[0]] = Difficulty(d[col[0]])
-        if col[0] == "platform":
-            d[col[0]] = Platform(d[col[0]])
-        if col[0] == "type":
-            d[col[0]] = ObjectType(d[col[0]] + "s")
-        if col[0] in ["returned", "planned_return", "retrieval_date", "register_date", "declared_date"]:
-            if d[col[0]] is not None:
-                try:
-                    d[col[0]] = datetime.strptime(d[col[0]], "%Y-%m-%d %H:%M:%S")
-                except ValueError:
-                    try:
-                        d[col[0]] = datetime.strptime(d[col[0]], "%Y-%m-%d %H:%M:%S.%f")
-                    except ValueError:
-                        d[col[0]] = datetime.strptime(d[col[0]], "%Y-%m-%d")
-            else:
-                d[col[0]] = None
-        if col[0] == "categories":
-            d[col[0]] = d[col[0]].split(",") if d[col[0]] is not None else []
-    return d
+    data = {}
+    for index, column in enumerate(cursor.description):
+        name = column[0]
+        value = row[index]
+        if name in ["play_difficulty", "learn_difficulty", "difficulty"]:
+            value = Difficulty(value) if value is not None else Difficulty.UNDEFINED
+        if name == "platform":
+            value = Platform(value) if value is not None else Platform.UNDEFINED
+        if name == "type":
+            value = ObjectType(value + "s")
+        if name in ["returned", "planned_return", "retrieval_date", "register_date", "declared_date"]:
+            value = parseDateTime(value)
+        if name == "categories":
+            value = value.split(",") if value is not None else []
+        data[name] = value
+    return data
 
 
 class DBManager:
@@ -58,75 +119,69 @@ class DBManager:
 
     def __init__(self, database: str):
         self.path: str = database
-        self._createDatabase(not os.path.exists(database))
+        self.closed = False
+        self.needsPopulating = not Path(database).exists()
+        self._createDatabase()
         print("Database connection established")
+        DBManager.instance = self
 
-    def __del__(self):
+    def close(self):
+        if getattr(self, "closed", True):
+            return
+        self.closed = True
         print("Closing database connection...")
         self.connection.close()
 
-    def _createDatabase(self, hardReset: bool = False):
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
+
+    def _createDatabase(self):
         print("Initializing database...")
-        if hardReset and os.path.exists(self.path):
-            os.remove(self.path)
         self.connection: SQLite.Connection = SQLite.connect(self.path)
         self.connection.row_factory = dict_factory
         cursor: SQLite.Cursor = self.connection.cursor()
-
-        with open("data_files/queries/generateDB.sql", 'r') as data:
-            cursor.executescript(data.read())
-
-        if hardReset:
-            from src.bgg import fetchBGGameData
-
-            print("Populating default data...")
-            with open("data_files/other/boardgames.csv", 'r') as data:
-                csvData = csv.DictReader(data)
-                games = {}
-                customGames = []
-                for row in csvData:
-                    if row['bgg_id'] == "":
-                        customGames.append(row)
-                    else:
-                        games[row['bgg_id']] = row
-            for game in fetchBGGameData(list(games.keys()), games, lambda x: print(f"Populating DB: {x} games done")):
-                queries = game.getInsertQueries(self.getNextItemID())
-                for query, values in queries:
-                    cursor.execute(query, values)
-            for game in customGames:
-                queries = BoardGameObj.createFromDB(game).getInsertQueries(self.getNextItemID())
-                for query, values in queries:
-                    cursor.execute(query, values)
-
-            with open("data_files/other/videogames.csv", 'r') as data:
-                csvData = csv.DictReader(data)
-                for entry in csvData:
-                    queries = VideoGameObj.createFromDB(entry).getInsertQueries(self.getNextItemID())
-                    for query, values in queries:
-                        cursor.execute(query, values)
-
-            with open("data_files/other/books.csv", 'r') as data:
-                csvData = csv.DictReader(data)
-                for entry in csvData:
-                    queries = BookObj.createFromDB(entry).getInsertQueries(self.getNextItemID())
-                    for query, values in queries:
-                        cursor.execute(query, values)
-
+        cursor.executescript(query("generateDB.sql"))
         self.connection.commit()
 
-    def searchIDsFromName(self, name: str) -> [int]:
-        cursor = self.connection.cursor()
-        cursor.execute("SELECT id FROM items WHERE LOWER(name) LIKE LOWER(?)", ("%" + name + "%",))
-        data = cursor.fetchall()
-        if len(data) == 0:
+    async def populateDefaultData(self, bggEnabled: bool = True):
+        from src.bgg import BGGUnavailable, fetchBGGameData
+
+        print("Populating default data...")
+        cursor: SQLite.Cursor = self.connection.cursor()
+
+        with open(OTHER_DIR / "boardgames.csv", "r", newline="", encoding="utf-8") as data:
+            boardgameRows = [normalizeSeedRow(row) for row in csv.DictReader(data)]
+        bggRows = {int(row["bgg_id"]): row for row in boardgameRows if row["bgg_id"] != ""}
+        games = {}
+        if bggEnabled and len(bggRows) > 0:
             try:
-                itemID = int(name)
-            except ValueError:
-                return []
+                fetched = await fetchBGGameData(list(bggRows.keys()), bggRows, lambda x: print(f"Populating DB: {x} games done"))
+            except BGGUnavailable as error:
+                print(f"Skipping BoardGameGeek data: {error}")
             else:
-                cursor.execute("SELECT EXISTS(SELECT 1 FROM items WHERE id = ?) AS item_exists", (itemID,))
-                return [itemID] if cursor.fetchone()['item_exists'] else []
-        return [item['id'] for item in data]
+                games = {game.bggId: game for game in fetched}
+        for row in boardgameRows:
+            game = games.get(int(row["bgg_id"]) if row["bgg_id"] != "" else -1) or BoardGameObj.createFromDB(row)
+            for statement, values in game.getInsertQueries(self.getNextItemID()):
+                cursor.execute(statement, values)
+
+        with open(OTHER_DIR / "videogames.csv", "r", newline="", encoding="utf-8") as data:
+            for entry in csv.DictReader(data):
+                normalized = normalizeSeedRow(entry)
+                for statement, values in VideoGameObj.createFromDB(normalized).getInsertQueries(self.getNextItemID()):
+                    cursor.execute(statement, values)
+
+        with open(OTHER_DIR / "books.csv", "r", newline="", encoding="utf-8") as data:
+            for entry in csv.DictReader(data):
+                normalized = normalizeSeedRow(entry)
+                normalized["categories"] = [category.strip() for category in normalized["categories"].split(",") if category.strip() != ""]
+                for statement, values in BookObj.createFromDB(normalized).getInsertQueries(self.getNextItemID()):
+                    cursor.execute(statement, values)
+
+        self.connection.commit()
 
     def getItemIDFromName(self, name: str) -> int:
         cursor = self.connection.cursor()
@@ -140,31 +195,7 @@ class DBManager:
             else:
                 cursor.execute("SELECT EXISTS(SELECT 1 FROM items WHERE id = ?) AS item_exists", (itemID,))
                 return itemID if cursor.fetchone()['item_exists'] else -1
-        return data['id'] if data is not None else -1
-
-    def getItemsToBorrowFromName(self, user: int, name: str):
-        cursor = self.connection.cursor()
-        with open("data_files/queries/getItemsToBorrow.sql", 'r') as data:
-            cursor.execute(data.read().format("LOWER(i.name) = LOWER(?)"), (name, user))
-            res = cursor.fetchall()
-            if len(res) == 0:
-                data.seek(0)
-                cursor.execute(data.read().format("LOWER(i.name) LIKE LOWER('%' || ? || '%')"), (name, user))
-            else:
-                return [res[0]['id']]
-        return [item['id'] for item in cursor.fetchall()]
-
-    def getItemsToReturnFromName(self, user: int, name: str):
-        cursor = self.connection.cursor()
-        with open("data_files/queries/getItemsToReturn.sql", 'r') as data:
-            cursor.execute(data.read().format("LOWER(i.name) = LOWER(?)"), (name, user))
-            res = cursor.fetchall()
-            if len(res) == 0:
-                data.seek(0)
-                cursor.execute(data.read().format("LOWER(i.name) LIKE LOWER('%' || ? || '%')"), (name, user))
-            else:
-                return [res[0]['id']]
-        return [item['id'] for item in cursor.fetchall()]
+        return data['id']
 
     def getItemNameFromID(self, id: int) -> str:
         cursor = self.connection.cursor()
@@ -174,42 +205,115 @@ class DBManager:
 
     def getItemAvailableCopies(self, id: int) -> int:
         cursor = self.connection.cursor()
-        with open("data_files/queries/getItemAvailableCopies.sql", 'r') as data:
-            cursor.execute(data.read(), (id,))
+        cursor.execute(query("getItemAvailableCopies.sql"), (id,))
         return cursor.fetchone()['copies_left']
 
-    def getFilteredList(self, itemType: ObjectType, orFilters: str, andFilters: str, ascending: bool = False, limit: int = 0, offset: int = 0) -> [dict]:
-        orFilterData = self._parseFilterTokens(orFilters)
-        andFilterData = self._parseFilterTokens(andFilters)
-        with open("data_files/queries/getFilteredList.sql", 'r') as data:
-            query = data.read().format(itemType.value)
-        cursor = self.connection.cursor()
-        queries = []
-        arguments = [itemType.value[:-1]]
-        if len(orFilterData) > 0 or len(andFilterData) > 0:
-            query += f" WHERE "
-        for filterToken in orFilterData:
-            queryFragment, arg = self._parseToQuery(filterToken)
-            queries.append(queryFragment)
-            arguments.append(arg)
-        query += f" OR ".join(queries)
-        if len(orFilterData) > 0:
-            query += f" AND "
-        queries = []
-        for filterToken in andFilterData:
-            queryFragment, arg = self._parseToQuery(filterToken)
-            queries.append(queryFragment)
-            arguments.append(arg)
-        query += f" AND ".join(queries)
-        if ascending:
-            query += " ORDER BY name ASC "
+    def searchItems(self, name: str = "", itemType: ObjectType = None, limit: int = 0) -> list[dict]:
+        clauses = []
+        arguments = []
+        if name != "":
+            clauses.append("LOWER(name) LIKE LOWER(?)")
+            arguments.append("%" + name + "%")
+        if itemType is not None:
+            clauses.append("type = ?")
+            arguments.append(itemType.value[:-1])
+        statement = "SELECT id, name FROM items"
+        if len(clauses) > 0:
+            statement += " WHERE " + " AND ".join(clauses)
+        statement += " ORDER BY name ASC"
         if limit > 0:
-            query += f" LIMIT ? "
+            statement += " LIMIT ?"
+            arguments.append(limit)
+        cursor = self.connection.cursor()
+        cursor.execute(statement, arguments)
+        return cursor.fetchall()
+
+    def getBookAuthors(self, name: str = "", limit: int = 0) -> list[str]:
+        arguments = []
+        statement = "SELECT DISTINCT author FROM books"
+        if name != "":
+            statement += " WHERE LOWER(author) LIKE LOWER(?)"
+            arguments.append("%" + name + "%")
+        statement += " ORDER BY author ASC"
+        if limit > 0:
+            statement += " LIMIT ?"
+            arguments.append(limit)
+        cursor = self.connection.cursor()
+        cursor.execute(statement, arguments)
+        return [row["author"] for row in cursor.fetchall()]
+
+    def getItemsToBorrowFromName(self, user: int, name: str) -> list[dict]:
+        cursor = self.connection.cursor()
+        statement = query("getItemsToBorrow.sql")
+        if name.isdigit():
+            cursor.execute(statement.format("i.id = ?"), (int(name), user))
+            return cursor.fetchall()
+        cursor.execute(statement.format("LOWER(i.name) = LOWER(?)"), (name, user))
+        exact = cursor.fetchall()
+        if len(exact) > 0:
+            return [exact[0]]
+        cursor.execute(statement.format("LOWER(i.name) LIKE LOWER('%' || ? || '%')"), (name, user))
+        return cursor.fetchall()
+
+    def getItemsToReturnFromName(self, user: int, name: str) -> list[dict]:
+        cursor = self.connection.cursor()
+        statement = query("getItemsToReturn.sql")
+        if name.isdigit():
+            cursor.execute(statement.format("i.id = ?"), (int(name), user))
+            return cursor.fetchall()
+        cursor.execute(statement.format("LOWER(i.name) = LOWER(?)"), (name, user))
+        exact = cursor.fetchall()
+        if len(exact) > 0:
+            return [exact[0]]
+        cursor.execute(statement.format("LOWER(i.name) LIKE LOWER('%' || ? || '%')"), (name, user))
+        return cursor.fetchall()
+
+    def getUserInterests(self, user: int, name: str = "", limit: int = 0) -> list[dict]:
+        arguments = [user]
+        statement = "SELECT items.id, items.name FROM interests JOIN items ON interests.item = items.id WHERE interests.user = ?"
+        if name != "":
+            statement += " AND LOWER(items.name) LIKE LOWER(?)"
+            arguments.append("%" + name + "%")
+        statement += " ORDER BY items.name ASC"
+        if limit > 0:
+            statement += " LIMIT ?"
+            arguments.append(limit)
+        cursor = self.connection.cursor()
+        cursor.execute(statement, arguments)
+        return cursor.fetchall()
+
+    def getFilteredList(self, itemType: ObjectType, conditions: list[tuple[str, Operation, Any]] = (), ascending: bool = False, limit: int = 0, offset: int = 0) -> list:
+        columns = FILTER_COLUMNS[itemType]
+        clauses = []
+        arguments = [itemType.value[:-1]]
+        for key, operation, value in conditions:
+            column = columns.get(key)
+            if column is None:
+                continue
+            if column == "name":
+                if operation is Operation.Equal:
+                    clauses.append("LOWER(name) LIKE LOWER(?)")
+                elif operation is Operation.NotEqual:
+                    clauses.append("LOWER(name) NOT LIKE LOWER(?)")
+                else:
+                    continue
+                arguments.append("%" + value + "%")
+                continue
+            clauses.append(f"{column} {operation.value} ?")
+            arguments.append(value)
+        statement = query("getFilteredList.sql").format(itemType.value)
+        if len(clauses) > 0:
+            statement += " WHERE " + " AND ".join(clauses)
+        if ascending:
+            statement += " ORDER BY name ASC "
+        if limit > 0:
+            statement += " LIMIT ? "
             arguments.append(limit)
             if offset > 0:
-                query += f" OFFSET ? "
+                statement += " OFFSET ? "
                 arguments.append(offset)
-        cursor.execute(query, arguments)
+        cursor = self.connection.cursor()
+        cursor.execute(statement, arguments)
         items = []
         match itemType:
             case ObjectType.BOARDGAME:
@@ -225,58 +329,58 @@ class DBManager:
 
     def getItemData(self, itemType: ObjectType, itemID: int) -> BoardGameObj | VideoGameObj | BookObj | None:
         cursor = self.connection.cursor()
-        with open("data_files/queries/getItem.sql", 'r') as data:
-            cursor.execute(data.read().format(itemType.value), (itemType.value[:-1], itemID))
+        cursor.execute(query("getItem.sql").format(itemType.value), (itemType.value[:-1], itemID))
         queryResult = cursor.fetchone()
         if queryResult is None:
             return None
         if itemType.value == ObjectType.BOARDGAME.value:
             return BoardGameObj.createFromDB(queryResult)
-        elif itemType.value == ObjectType.VIDEOGAME.value:
+        if itemType.value == ObjectType.VIDEOGAME.value:
             return VideoGameObj.createFromDB(queryResult)
-        else:
-            return BookObj.createFromDB(queryResult)
+        return BookObj.createFromDB(queryResult)
 
-    def getBorrowsList(self, user: int = None, item: int = None, current: bool = None):
-        cursor = self.connection.cursor()
-        with open("data_files/queries/getMixedList.sql", 'r') as data:
-            query = data.read()
-        finalFilter = ""
-        args = []
+    def getBorrowsList(self, user: int = None, item: int = None, current: bool = None, limit: int = 0, offset: int = 0):
+        clauses = []
+        arguments = []
         if user is not None:
-            args.append(user)
+            clauses.append("user = ?")
+            arguments.append(user)
         if item is not None:
-            args.append(item)
-        finalFilter += "WHERE user = ?" if user is not None else ""
-        if item is not None:
-            finalFilter += ("WHERE" if finalFilter == "" else "AND") + f" item = ?"
+            clauses.append("item = ?")
+            arguments.append(item)
         if current is not None:
-            finalFilter += ("WHERE" if finalFilter == "" else "AND") + f" returned IS {"" if current else "NOT"} NULL"
-        cursor.execute(query.format(finalFilter), args)
+            clauses.append("returned IS NULL" if current else "returned IS NOT NULL")
+        statement = withPagination(query("getMixedList.sql").format(" WHERE " + " AND ".join(clauses) if len(clauses) > 0 else ""), limit, offset, arguments)
+        cursor = self.connection.cursor()
+        cursor.execute(statement, arguments)
         return cursor.fetchall()
 
     def getBorrowsAmount(self, user: int, current: bool) -> int:
+        returned = "IS NULL" if current else "IS NOT NULL"
         cursor = self.connection.cursor()
         if user is None:
-            cursor.execute(f"SELECT COUNT(*) AS amount FROM borrows WHERE returned IS {"" if current else "NOT"} NULL")
+            cursor.execute(f"SELECT COUNT(*) AS amount FROM borrows WHERE returned {returned}")
         else:
-            cursor.execute(f"SELECT COUNT(*) AS amount FROM borrows WHERE user = ? AND returned IS {"" if current else "NOT"} NULL", (user,))
+            cursor.execute(f"SELECT COUNT(*) AS amount FROM borrows WHERE user = ? AND returned {returned}", (user,))
         return cursor.fetchone()['amount']
 
-    def getBorrowStats(self, order: str, target: str) -> [dict]:
+    def getBorrowStats(self, order: str, target: str, limit: int = 0, offset: int = 0) -> [dict]:
+        arguments = []
+        statement = query("getBorrowStats.sql") if target == "user" else query("getBorrowItemStats.sql")
+        statement = withPagination(statement.format(order), limit, offset, arguments)
         cursor = self.connection.cursor()
-        if target == "user":
-            with open("data_files/queries/getBorrowStats.sql", 'r') as data:
-                cursor.execute(data.read().format(order))
-        else:
-            with open("data_files/queries/getBorrowItemStats.sql", 'r') as data:
-                cursor.execute(data.read().format(order))
+        cursor.execute(statement, arguments)
         return cursor.fetchall()
 
-    def getReminders(self) -> [dict]:
+    def getBorrowStatsCount(self, target: str) -> int:
+        column = "user" if target == "user" else "item"
         cursor = self.connection.cursor()
-        with open("data_files/queries/getReminders.sql", 'r') as data:
-            cursor.execute(data.read())
+        cursor.execute(f"SELECT COUNT(DISTINCT {column}) AS total FROM borrows")
+        return cursor.fetchone()['total']
+
+    def getReminders(self, now: datetime = None) -> [dict]:
+        cursor = self.connection.cursor()
+        cursor.execute(query("getReminders.sql"), {"now": (now or datetime.now()).strftime("%Y-%m-%d %H:%M:%S")})
         return cursor.fetchall()
 
     def getInterested(self, item: int):
@@ -284,13 +388,198 @@ class DBManager:
         cursor.execute("SELECT user, declared_date FROM interests WHERE item = ?", (item,))
         return cursor.fetchall()
 
+    def getIDFromBGGID(self, bgg_id: int) -> int:
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT id FROM boardgames WHERE bgg_id = ?", (bgg_id,))
+        data = cursor.fetchone()
+        return data['id'] if data is not None else -1
+
+    def getItemIDByExactName(self, name: str) -> int:
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT id FROM items WHERE LOWER(name) = LOWER(?)", (name,))
+        data = cursor.fetchone()
+        return data['id'] if data is not None else -1
+
+    def getItemType(self, itemID: int) -> ObjectType | None:
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT type FROM items WHERE id = ?", (itemID,))
+        data = cursor.fetchone()
+        return None if data is None else data['type']
+
+    def getItemUsage(self, itemID: int) -> dict:
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT (SELECT COUNT(*) FROM borrows WHERE item = ?) AS borrows, (SELECT COUNT(*) FROM borrows WHERE item = ? AND returned IS NULL) AS borrowed, (SELECT COUNT(*) FROM interests WHERE item = ?) AS interests", (itemID, itemID, itemID))
+        return cursor.fetchone()
+
+    def addCopies(self, itemID: int, copies: int) -> int:
+        cursor = self.connection.cursor()
+        cursor.execute("UPDATE items SET copies = copies + ? WHERE id = ?", (copies, itemID))
+        self.connection.commit()
+        return itemID
+
+    def deleteItem(self, itemID: int) -> tuple[bool, str]:
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT name, copies, copies - IFNULL((SELECT COUNT(*) FROM borrows WHERE item = ? AND returned IS NULL), 0) AS available FROM items WHERE id = ?", (itemID, itemID))
+        data = cursor.fetchone()
+        if data is None:
+            return False, "This item does not exist"
+        borrowed = data['copies'] - data['available']
+        if borrowed > 0:
+            return False, f"There are {borrowed} copies currently borrowed, they have to be returned first"
+        cursor.execute("DELETE FROM borrows WHERE item = ?", (itemID,))
+        cursor.execute("DELETE FROM interests WHERE item = ?", (itemID,))
+        cursor.execute("DELETE FROM categories WHERE id = ?", (itemID,))
+        for itemType in TYPE_COLUMNS:
+            cursor.execute(f"DELETE FROM {itemType.value} WHERE id = ?", (itemID,))
+        cursor.execute("DELETE FROM items WHERE id = ?", (itemID,))
+        self.connection.commit()
+        return True, f"Item '{data['name']}' deleted successfully"
+
+    def getNextItemID(self):
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT MAX(id) AS max_id FROM items")
+        elem = cursor.fetchone()['max_id']
+        return elem + 1 if elem is not None else 0
+
+    def _insertItem(self, item: BoardGameObj | VideoGameObj | BookObj) -> int | None:
+        cursor = self.connection.cursor()
+        try:
+            for statement, values in item.getInsertQueries(self.getNextItemID()):
+                cursor.execute(statement, values)
+            self.connection.commit()
+        except SQLite.IntegrityError:
+            self.connection.rollback()
+            return None
+        return item.id
+
+    async def insertBoardgameFromBGG(self, bggID: int, play_difficulty: Difficulty, learn_difficulty: Difficulty, copies: int) -> bool:
+        from src.bgg import fetchBGGameData
+
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT id FROM boardgames WHERE bgg_id = ?", (bggID,))
+        existingData = cursor.fetchone()
+        if existingData is not None:
+            cursor.execute("UPDATE items SET copies = copies + ? WHERE id = ?", (copies, existingData['id']))
+            self.connection.commit()
+            return True
+
+        extraData = {bggID: {
+            "play_difficulty": play_difficulty,
+            "learn_difficulty": learn_difficulty,
+            "copies": copies
+        }}
+        games = await fetchBGGameData([bggID], extraData)
+        if len(games) == 0:
+            return False
+        return self._insertItem(games[0]) is not None
+
+    def insertBoardgameManual(self, name: str, min_players: int, max_players: int, length: int, description: str, thumbnail: str, categories: list[str], copies: int, bggID: int, play_difficulty: Difficulty, learn_difficulty: Difficulty) -> int | None:
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT id FROM items WHERE LOWER(name) = LOWER(?)", (name,))
+        existingData = cursor.fetchone()
+        if existingData is not None:
+            return self.addCopies(existingData['id'], copies)
+        return self._insertItem(BoardGameObj(
+            id=-1,
+            title=name,
+            minPlayers=min_players,
+            maxPlayers=max_players,
+            playingTime=length,
+            copies=copies,
+            copies_available=copies,
+            bggId=bggID,
+            description=description if description != "" else DEFAULT_DESCRIPTION,
+            thumbnail=thumbnail if thumbnail != "" else DEFAULT_THUMBNAIL,
+            categories=categories,
+            play_difficulty=play_difficulty,
+            learn_difficulty=learn_difficulty
+        ))
+
+    def insertVideogame(self, name: str, platform: Platform, difficulty: Difficulty, min_players: int, max_players: int, length: int, copies: int) -> int | None:
+        existing = self.getItemIDByExactName(name)
+        if existing != -1:
+            return self.addCopies(existing, copies)
+        return self._insertItem(VideoGameObj.createFromDB({
+            "name": name,
+            "platform": platform,
+            "difficulty": difficulty,
+            "min_players": min_players,
+            "max_players": max_players,
+            "length": length,
+            "copies": copies
+        }))
+
+    def insertBook(self, name: str, author: str, pages: int, abstract: str, copies: int) -> int | None:
+        existing = self.getItemIDByExactName(name)
+        if existing != -1:
+            return self.addCopies(existing, copies)
+        return self._insertItem(BookObj.createFromDB({
+            "name": name,
+            "author": author,
+            "length": pages,
+            "description": abstract if abstract != "" else DEFAULT_DESCRIPTION,
+            "copies": copies
+        }))
+
+    def updateItem(self, itemType: ObjectType, itemID: int, values: dict) -> bool:
+        itemValues = {key: value for key, value in values.items() if key in ITEM_COLUMNS}
+        typeValues = {key: value for key, value in values.items() if key in TYPE_COLUMNS[itemType]}
+        cursor = self.connection.cursor()
+        try:
+            if len(itemValues) > 0:
+                assignments = ", ".join(f"{column} = ?" for column in itemValues)
+                cursor.execute(f"UPDATE items SET {assignments} WHERE id = ?", [*itemValues.values(), itemID])
+            if len(typeValues) > 0:
+                assignments = ", ".join(f"{column} = ?" for column in typeValues)
+                cursor.execute(f"UPDATE {itemType.value} SET {assignments} WHERE id = ?", [*typeValues.values(), itemID])
+            self.connection.commit()
+        except SQLite.IntegrityError:
+            self.connection.rollback()
+            return False
+        return True
+
+    def setCategories(self, itemID: int, categories: list[str]) -> bool:
+        cursor = self.connection.cursor()
+        cursor.execute("DELETE FROM categories WHERE id = ?", (itemID,))
+        for category in categories:
+            cursor.execute("INSERT INTO categories (id, category) VALUES (?, ?)", (itemID, category))
+        self.connection.commit()
+        return True
+
+    def borrowItem(self, user: int, item: int, planned_return: datetime, retrieval_date: datetime) -> (bool, str):
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT EXISTS(SELECT 1 FROM items WHERE id = ?) AS item_exists", (item,))
+        if not cursor.fetchone()['item_exists']:
+            return False, "This item does not exist"
+
+        cursor.execute("SELECT EXISTS(SELECT 1 FROM borrows WHERE user = ? AND item = ? AND returned IS NULL) AS already_borrowed", (user, item))
+        if cursor.fetchone()['already_borrowed']:
+            return False, "You are already borrowing this item"
+
+        if self.getItemAvailableCopies(item) <= 0:
+            return False, "There are no copies left of this item in Piazza"
+
+        if retrieval_date is None:
+            retrieval_date = datetime.now()
+
+        if planned_return is not None and planned_return < retrieval_date:
+            return False, "Planned return date must be after retrieval date"
+        if retrieval_date > datetime.now():
+            return False, "Retrieval date must not be in the future"
+
+        cursor.execute("INSERT INTO borrows (user, item, amount, planned_return, retrieval_date) VALUES (?, ?, ?, ?, ?)",
+                       (user, item, 1, planned_return, retrieval_date))
+        item_name = self.getItemNameFromID(item)
+
+        self.connection.commit()
+        return True, f"Item '{item_name}' borrowed successfully"
+
     def returnItem(self, user: int, item: int) -> (bool, str):
         cursor = self.connection.cursor()
         cursor.execute("SELECT EXISTS(SELECT 1 FROM items WHERE id = ?) AS item_exists", (item,))
         if not cursor.fetchone()['item_exists']:
             return False, "This item does not exist"
 
-        # Check the user has not borrowed the item already
         cursor.execute("SELECT EXISTS(SELECT 1 FROM borrows WHERE user = ? AND item = ? AND returned IS NULL) AS already_borrowed", (user, item))
         if not cursor.fetchone()['already_borrowed']:
             return False, "You are not borrwing this item"
@@ -298,15 +587,11 @@ class DBManager:
         cursor.execute("UPDATE borrows SET returned = ? WHERE user = ? AND item = ? AND returned IS NULL", (datetime.now(), user, item))
         self.connection.commit()
 
-        cursor.execute("SELECT name FROM items WHERE id = ?", (item,))
-        item_name = cursor.fetchone()['name']
-
+        item_name = self.getItemNameFromID(item)
         return True, f"Item '{item_name}' returned successfully"
 
     def returnAllItems(self, user: int):
         cursor = self.connection.cursor()
-
-        # Get all game names that the user is borrowing
         cursor.execute("SELECT items.name FROM borrows JOIN items ON borrows.item = items.id WHERE user = ? AND returned IS NULL", (user,))
         items = cursor.fetchall()
 
@@ -322,126 +607,6 @@ class DBManager:
         cursor.execute("UPDATE borrows SET reminded = TRUE WHERE user = ? and item = ?", (user, item))
         self.connection.commit()
         return True
-
-    def insertBoardgame(self, bggCode: int, play_difficulty: Difficulty, learn_difficulty: Difficulty, copies: int) -> bool:
-        cursor = self.connection.cursor()
-
-        cursor.execute("SELECT id FROM boardgames WHERE bgg_id = ?", (bggCode,))
-        existingData = cursor.fetchone()
-        if existingData is not None:
-            cursor.execute("UPDATE items SET copies = copies + ? WHERE id = ?", (copies, existingData['id']))
-            return True
-
-        extraData = {bggCode: {
-            "play_difficulty": play_difficulty,
-            "learn_difficulty": learn_difficulty,
-            "copies": copies
-        }}
-        from src.bgg import fetchBGGameData
-        game = fetchBGGameData([bggCode], extraData)
-        if len(game) == 0:
-            return False
-        queries = game[0].getInsertQueries(self.getNextItemID())
-        for query, values in queries:
-            cursor.execute(query, values)
-        self.connection.commit()
-        return True
-
-    def deleteBoardgame(self, itemID: int) -> bool:
-        cursor = self.connection.cursor()
-        cursor.execute("DELETE FROM items WHERE id = ?", (itemID,))
-        self.connection.commit()
-        return True
-
-    def insertVideogame(self, name: str, platform: Platform, difficulty: Difficulty, min_players: int, max_players: int, length: int, copies: int) -> bool:
-        cursor = self.connection.cursor()
-        game = VideoGameObj.createFromDB({
-            "name": name,
-            "platform": platform,
-            "difficulty": difficulty,
-            "min_players": min_players,
-            "max_players": max_players,
-            "length": length,
-            "copies": copies
-        })
-        queries = game.getInsertQueries(self.getNextItemID())
-        for query, values in queries:
-            cursor.execute(query, values)
-        self.connection.commit()
-        return True
-
-    def deleteVideogame(self, itemID: int) -> bool:
-        cursor = self.connection.cursor()
-        cursor.execute("DELETE FROM items WHERE id = ?", (itemID,))
-        self.connection.commit()
-        return True
-
-    def insertBook(self, name: str, author: str, pages: int, genre: str, abstract: str, copies: int) -> bool:
-        cursor = self.connection.cursor()
-        book = BookObj.createFromDB({
-            "name": name,
-            "author": author,
-            "pages": pages,
-            "genre": genre,
-            "abstract": abstract,
-            "copies": copies
-        })
-        queries = book.getInsertQueries(self.getNextItemID())
-        for query, values in queries:
-            cursor.execute(query, values)
-        self.connection.commit()
-        return True
-
-    def deleteBook(self, itemID: int) -> bool:
-        cursor = self.connection.cursor()
-        cursor.execute("DELETE FROM items WHERE id = ?", (itemID,))
-        self.connection.commit()
-        return True
-
-    def editCopies(self, itemID: int, copies: int) -> bool:
-        cursor = self.connection.cursor()
-        try:
-            cursor.execute(f"UPDATE items SET copies = ? WHERE id = ?", (copies, itemID))
-            self.connection.commit()
-        except SQLite.IntegrityError:
-            return False
-        return True
-
-    def borrowItem(self, user: int, item: int, planned_return: datetime, retrieval_date: datetime) -> (bool, str):
-        cursor = self.connection.cursor()
-        # Check the item exists
-        cursor.execute("SELECT EXISTS(SELECT 1 FROM items WHERE id = ?) AS item_exists", (item,))
-        if not cursor.fetchone()['item_exists']:
-            return False, "This item does not exist"
-
-        # Check the user has not borrowed the item already
-        cursor.execute("SELECT EXISTS(SELECT 1 FROM borrows WHERE user = ? AND item = ? AND returned IS NULL) AS already_borrowed", (user, item))
-        if cursor.fetchone()['already_borrowed']:
-            return False, "You are already borrowing this item"
-
-        # Check the item is available
-        cursor.execute("SELECT type, copies - IFNULL(br.borrowed_count, 0) AS copies_left FROM items t LEFT JOIN (SELECT item, COUNT(*) AS borrowed_count FROM borrows WHERE returned IS NULL GROUP BY item) br ON t.id = br.item WHERE id = ?", (item,))
-        copies_left = cursor.fetchone()['copies_left']
-        if copies_left <= 0:
-            return False, "There are no copies left of this item in Piazza"
-
-        if retrieval_date is None:
-            retrieval_date = datetime.now()
-
-        # Check dates are valid
-        if planned_return is not None and planned_return < retrieval_date:
-            return False, "Planned return date must be after retrieval date"
-        if retrieval_date > datetime.now():
-            return False, "Retrieval date must not be in the future"
-
-        cursor.execute("INSERT INTO borrows (user, item, amount, planned_return, retrieval_date) VALUES (?, ?, ?, ?, ?)",
-                       (user, item, 1, planned_return, retrieval_date))
-
-        cursor.execute("SELECT name FROM items WHERE id = ?", (item,))
-        item_name = cursor.fetchone()['name']
-
-        self.connection.commit()
-        return True, f"Item '{item_name}' borrowed successfully"
 
     def declareInterest(self, user: int, item: str | int):
         if isinstance(item, str):
@@ -485,46 +650,57 @@ class DBManager:
         self.connection.commit()
         return True, "Suggestion deleted successfully"
 
-    def getSuggestionNames(self, suggestion_type: str = ""):
+    def getSuggestionNames(self, suggestion_type: str = "", search: str = "", limit: int = 0) -> list[str]:
+        clauses = []
+        arguments = []
+        if suggestion_type != "":
+            clauses.append("suggestion_type = ?")
+            arguments.append(suggestion_type)
+        if search != "":
+            clauses.append("LOWER(name) LIKE LOWER(?)")
+            arguments.append("%" + search + "%")
+        statement = "SELECT name FROM suggestions"
+        if len(clauses) > 0:
+            statement += " WHERE " + " AND ".join(clauses)
+        statement += " ORDER BY name ASC"
+        if limit > 0:
+            statement += " LIMIT ?"
+            arguments.append(limit)
         cursor = self.connection.cursor()
-        if suggestion_type == "":
-            cursor.execute("SELECT name FROM suggestions")
-        else:
-            cursor.execute("SELECT name FROM suggestions WHERE suggestion_type = ?", (suggestion_type,))
-        names = [suggestion['name'] for suggestion in cursor.fetchall()]
-        return names
+        cursor.execute(statement, arguments)
+        return [suggestion['name'] for suggestion in cursor.fetchall()]
 
     def getSuggestion(self, suggestion: str):
         cursor = self.connection.cursor()
-        cursor.execute("SELECT EXISTS(SELECT 1 FROM suggestions WHERE name = ?) AS suggestion_exists", (suggestion,));
+        cursor.execute("SELECT EXISTS(SELECT 1 FROM suggestions WHERE name = ?) AS suggestion_exists", (suggestion,))
         if not cursor.fetchone()['suggestion_exists']:
             return None, None
         cursor.execute("SELECT * FROM suggestions WHERE name = ?", (suggestion,))
         data = cursor.fetchone()
-        votes = []
         cursor.execute("SELECT user FROM suggestion_votes WHERE name = ?", (suggestion,))
-        for vote in cursor.fetchall():
-            votes.append(vote['user'])
+        votes = [vote['user'] for vote in cursor.fetchall()]
         return data, votes
 
-    def getSuggestions(self, showRejected: bool = False, showBought: bool = False):
+    def getSuggestionsPage(self, showRejected: bool = False, showBought: bool = False, limit: int = 0, offset: int = 0) -> list[dict]:
+        arguments = []
+        statement = withPagination(query("getSuggestionsPage.sql").format(self._suggestionsFilter(showRejected, showBought)), limit, offset, arguments)
         cursor = self.connection.cursor()
-        suggestions = []
-        whereClause = ""
+        cursor.execute(statement, arguments)
+        return cursor.fetchall()
+
+    def getSuggestionCount(self, showRejected: bool = False, showBought: bool = False) -> int:
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT COUNT(*) AS total FROM suggestions" + self._suggestionsFilter(showRejected, showBought))
+        return cursor.fetchone()['total']
+
+    @staticmethod
+    def _suggestionsFilter(showRejected: bool, showBought: bool) -> str:
+        clauses = []
         if not showRejected:
-            whereClause += " WHERE status != 'REJECTED'"
+            clauses.append("status != 'REJECTED'")
         if not showBought:
-            if whereClause == "":
-                whereClause += " WHERE "
-            else:
-                whereClause += " AND "
-            whereClause += "status != 'BOUGHT'"
-        for suggestion in cursor.execute("SELECT * FROM suggestions" + whereClause).fetchall():
-            suggestion['votes'] = []
-            for vote in cursor.execute("SELECT user FROM suggestion_votes WHERE name = ?", (suggestion['name'],)).fetchall():
-                suggestion['votes'].append(vote['user'])
-            suggestions.append(suggestion)
-        return suggestions
+            clauses.append("status != 'BOUGHT'")
+        return (" WHERE " + " AND ".join(clauses)) if len(clauses) > 0 else ""
 
     def voteSuggestion(self, user: int, suggestion: str):
         cursor = self.connection.cursor()
@@ -538,23 +714,6 @@ class DBManager:
         self.connection.commit()
         return True, "Vote registered successfully"
 
-    def unvoteSuggestion(self, user: int, suggestion: str):
-        cursor = self.connection.cursor()
-        suggestionData, votes = self.getSuggestion(suggestion)
-        if suggestionData is None:
-            return False, "This suggestion does not exist"
-        if user not in votes:
-            return False, "You have not voted for this suggestion"
-        cursor.execute("DELETE FROM suggestion_votes WHERE user = ? AND name = ?", (user, suggestion))
-        if len(votes) == 1:
-            cursor.execute("DELETE FROM suggestions WHERE name = ?", (suggestion,))
-            self.connection.commit()
-            return True, "Vote removed and suggestion deleted"
-        else:
-            cursor.execute("UPDATE suggestions SET likes = likes - 1 WHERE name = ?", (suggestion,))
-        self.connection.commit()
-        return True, "Vote removed successfully"
-
     def updateSuggestionStatus(self, suggestion: str, status: str):
         cursor = self.connection.cursor()
         cursor.execute("SELECT EXISTS(SELECT 1 FROM suggestions WHERE name = ?) AS suggestion_exists", (suggestion,))
@@ -564,99 +723,17 @@ class DBManager:
         self.connection.commit()
         return True, "Suggestion status updated successfully"
 
-    def execute(self, query: str) -> (bool, str):
+    def execute(self, statement: str) -> (bool, str):
         try:
             cursor = self.connection.cursor()
-            cursor.execute(query)
+            cursor.execute(statement)
             self.connection.commit()
             return True, str(cursor.fetchall())
-        except SQLite.Error as e:
-            return False, str(e)
-
-    @staticmethod
-    def _parseToQuery(filterToken: dict) -> (str, Any):
-        value = filterToken['value']
-        op = filterToken['operation']
-        if filterToken['key'] == "name":
-            value = '%' + filterToken['value'] + '%'
-            return f"LOWER({filterToken['key']}) LIKE LOWER(?)", value
-        return f"{filterToken['key']} {op} ?", value
-
-    @staticmethod
-    def _parseFilterTokens(filters: str) -> [dict]:
-        def splitTokens(candidates: str) -> (str, str, str):
-            for operator in ["==", "!=", ">=", "<=", ">", "<"]:  # ">=" and "<=" must be before ">" and "<"
-                if operator in candidates:
-                    first, third = candidates.split(operator)
-                    return first.strip(), operator.strip(), third.strip()
-            return "", "", ""
-
-        key_map = {
-            "id": ("id", int),
-            "name": ("name", str),
-            "play": ("play_difficulty", Difficulty),
-            "learn": ("learn_difficulty", Difficulty),
-            "diff": ("difficulty", Difficulty),
-            "min": ("min_players", int),
-            "max": ("max_players", int),
-            "platform": ("platform", Platform),
-            "genre": ("genre", str),
-            "pages": ("pages", int),
-            "length": ("length", int)
-        }
-
-        data = []
-        for filterElement in filters.split(","):
-            key, operation, value = splitTokens(filterElement)
-            key = key.replace(" ", "").replace("_", "").lower()
-            converted_value = None
-            for k, (mapped_key, value_converter) in key_map.items():
-                if not key.startswith(k):
-                    continue
-                key = mapped_key
-                try:
-                    converted_value = value_converter[value.upper()].value if issubclass(value_converter, Enum) else value_converter(value)
-                except (KeyError, ValueError):
-                    pass  # Exception is ignored since converted_value is still None, so we just ignore the filter
-                break
-            if converted_value is None or (
-                    key in ["platform", "genre", "name", "id"] and operation not in ["==", "!="]):
-                continue
-            data.append({"key": key, "operation": operation, "value": converted_value})
-        return data
-
-    def getIDFromBGGID(self, bgg_id: int) -> int:
-        cursor = self.connection.cursor()
-        cursor.execute("SELECT id FROM boardgames WHERE bgg_id = ?", (bgg_id,))
-        data = cursor.fetchone()
-        return data['id'] if data is not None else -1
-
-    def getBBGIDFromID(self, id: int) -> int:
-        cursor = self.connection.cursor()
-        cursor.execute("SELECT bgg_id FROM boardgames WHERE id = ?", (id,))
-        data = cursor.fetchone()
-        return data['bgg_id'] if data is not None else -1
-
-    def getBGGIDFromName(self, name: str) -> [int]:
-        cursor = self.connection.cursor()
-        # remove case sensitivity and return all results that start with 'name' str. BGG can handle up to 20 per request.
-        cursor.execute(f"SELECT boardgames.bgg_id FROM items JOIN boardgames ON items.id = boardgames.id WHERE LOWER(items.name) LIKE LOWER(?)", ("%" + name + "%",))
-        data = cursor.fetchall()
-        ids = [item['bgg_id'] for item in data]
-        return ids
-
-    def getNextItemID(self):
-        cursor = self.connection.cursor()
-        cursor.execute("SELECT MAX(id) AS max_id FROM items")
-        elem = cursor.fetchone()['max_id']
-        return elem + 1 if elem is not None else 0
-
-    @staticmethod
-    def initInstance(databasePath):
-        DBManager.instance = DBManager(databasePath)
+        except SQLite.Error as error:
+            return False, str(error)
 
     @staticmethod
     def getInstance() -> 'DBManager':
         if DBManager.instance is None:
-            DBManager.initInstance("data_files/database.sqlite")
+            DBManager(str(DATABASE_PATH))
         return DBManager.instance

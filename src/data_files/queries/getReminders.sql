@@ -1,11 +1,12 @@
-SELECT *,
+SELECT b.*, i.name AS item_name,
        CASE
-           WHEN planned_return >= datetime('now') AND planned_return < datetime('now', '+24 hours') THEN 'today'
-           WHEN planned_return >= datetime('now', '+24 hours') AND planned_return < datetime('now', '+48 hours') THEN 'tomorrow'
-           WHEN planned_return < datetime('now') THEN 'overdue'
+           WHEN b.planned_return >= :now AND b.planned_return < datetime(:now, '+24 hours') THEN 'today'
+           WHEN b.planned_return >= datetime(:now, '+24 hours') AND b.planned_return < datetime(:now, '+48 hours') THEN 'tomorrow'
+           WHEN b.planned_return < :now THEN 'overdue'
        END AS return_status
-FROM borrows
-WHERE planned_return IS NOT NULL
-  AND planned_return <= datetime('now', '+48 hours')
-  AND returned IS NULL
-  AND reminded = FALSE;
+FROM borrows b
+JOIN items i ON i.id = b.item
+WHERE b.planned_return IS NOT NULL
+  AND b.planned_return <= datetime(:now, '+48 hours')
+  AND b.returned IS NULL
+  AND b.reminded = FALSE;
