@@ -46,13 +46,18 @@ class GDTBot(commands.Bot):
         await self.syncCommands()
 
     async def syncCommands(self):
+        if len(self.config.testGuilds) == 0:
+            synced = await self.tree.sync()
+            print(f"Synced {len(synced)} commands globally")
+            return
         for guildID in self.config.testGuilds:
             guild = discord.Object(id=guildID)
             self.tree.copy_global_to(guild=guild)
-            await self.tree.sync(guild=guild)
-            print(f"Synced commands to test guild {guildID}")
-        synced = await self.tree.sync()
-        print(f"Synced {len(synced)} commands globally")
+            synced = await self.tree.sync(guild=guild)
+            print(f"Synced {len(synced)} commands to test guild {guildID}")
+        self.tree.clear_commands(guild=None)
+        await self.tree.sync()
+        print("Cleared the globally registered commands, test guilds are used instead")
 
     async def on_ready(self):
         initializeBot(self)
